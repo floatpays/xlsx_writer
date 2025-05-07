@@ -1,0 +1,13 @@
+[package]
+name = "rustxlsxwriter"
+version = "0.1.0"
+authors = []
+edition = "2021"
+
+[lib]
+name = "rustxlsxwriter"
+crate-type = ["cdylib"]
+
+[dependencies]
+rustler = "0.36.1"
+rust_xlsxwriter = "0.86.1"
