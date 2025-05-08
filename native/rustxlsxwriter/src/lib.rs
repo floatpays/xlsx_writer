@@ -1,4 +1,4 @@
-use rust_xlsxwriter::{workbook, ExcelDateTime, Format, Image, Workbook, XlsxError};
+use rust_xlsxwriter::{IntoExcelData, ExcelDateTime, Format, Image, Workbook, XlsxError};
 use rustler::Atom;
 
 mod atoms {
