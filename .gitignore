@@ -26,4 +26,6 @@ xlsx-*.tar
 /target/
 
 
+demo.xlsx
+
 priv/native/*.so

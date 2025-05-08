@@ -53,11 +53,6 @@ fn add_worksheet_examples(workbook: &mut Workbook) -> Result<(), XlsxError> {
     Ok(())
 }
 
-#[rustler::nif]
-fn add(a: i64, b: i64) -> i64 {
-    a + b
-}
-
 // Return some binary data. We'll need this to get the worksheet.
 // A byte vector is what Workbook.save_to_buffer returns.
 #[rustler::nif]
