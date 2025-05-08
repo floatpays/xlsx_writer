@@ -1,5 +1,6 @@
-use rust_xlsxwriter::{ExcelDateTime, Format, Image, Workbook, XlsxError};
+use rust_xlsxwriter::{workbook, ExcelDateTime, Format, Image, Workbook, XlsxError};
 use rustler::Atom;
+use std::any::Any;
 
 mod atoms {
     rustler::atoms! {
@@ -15,10 +16,7 @@ mod atoms {
 // impl Encoder for XlsxError
 // {
 //     fn encode<'c>(&self, env: Env<'c>) -> Term<'c> {
-//         // Return an atom saying there was an error.
-//         // We can figure out later how to include more data
-//         // about the error.
-//         Err(atoms::xlsx_generation_error()).encode(env)
+//         ...return encoded version of XlsxError
 //     }
 // }
 
@@ -59,6 +57,30 @@ fn add_worksheet_examples(workbook: &mut Workbook) -> Result<(), XlsxError> {
 #[rustler::nif]
 fn add(a: i64, b: i64) -> i64 {
     a + b
+}
+
+#[rustler::nif]
+fn new_workbook() -> Box<dyn Any> {
+    let workbook = Workbook::new();
+
+    Box::new(workbook)
+}
+
+#[rustler::nif]
+fn write_to_workbook(workbook: &mut Workbook) -> Result<(), Atom> {
+    let mut workbook = Workbook::new();
+    let worksheet = workbook.add_worksheet();
+    worksheet.set_name("custom_sheet_name")?;
+
+    match workbook.save("demo.xlsx") {
+        Ok(_) => return Ok(()),
+        Err(_e) => {
+            // Return an atom saying there was an error.
+            // We can figure out later how to include more data
+            // about the error.
+            return Err(atoms::xlsx_generation_error());
+        }
+    }
 }
 
 #[rustler::nif]
