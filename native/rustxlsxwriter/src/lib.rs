@@ -133,4 +133,4 @@ fn test_new_workbook() -> Result<(), Atom> {
     }
 }
 
-rustler::init!("Elixir.XlsxWriter");
+rustler::init!("Elixir.XlsxWriter.RustXlsxWriter");
