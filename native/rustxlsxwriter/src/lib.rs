@@ -82,6 +82,42 @@ fn get_binary() -> Result<Vec<u8>, Atom> {
     }
 }
 
+// Given an image as a binary (not file path), return a binary worksheet.
+#[rustler::nif]
+fn get_binary_with_image(image_bytes_vector: Vec<u8>) -> Result<Vec<u8>, Atom> {
+    let mut workbook = Workbook::new();
+    let worksheet = workbook.add_worksheet();
+
+    let image_bytes: &[u8] = &image_bytes_vector;
+
+    // TODO: Is there something like a 'with' statement in Rust?
+    // (Using "if let" maybe?)
+    match Image::new_from_buffer(image_bytes) {
+        Ok(image) => {
+            match worksheet.insert_image(3, 0, &image) {
+                Ok(_) => {
+                    //                return Ok(image_bytes_vector);
+                    match workbook.save_to_buffer() {
+                        Ok(buf) => return Ok(buf),
+                        Err(_e) => {
+                            // Something went wrong when savings workbook to buffer.
+                            return Err(atoms::xlsx_generation_error());
+                        }
+                    }
+                }
+                Err(_xlsx_error) => {
+                    // Something went wrong when inserting the image.
+                    return Err(atoms::xlsx_generation_error());
+                }
+            }
+        }
+        Err(_e) => {
+            // Something went wrong when creating the image from buffer.
+            return Err(atoms::xlsx_generation_error());
+        }
+    }
+}
+
 #[rustler::nif]
 fn test_new_workbook() -> Result<(), Atom> {
     let mut workbook = Workbook::new();
