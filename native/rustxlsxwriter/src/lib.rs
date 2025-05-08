@@ -1,6 +1,5 @@
 use rust_xlsxwriter::{workbook, ExcelDateTime, Format, Image, Workbook, XlsxError};
 use rustler::Atom;
-use std::any::Any;
 
 mod atoms {
     rustler::atoms! {
@@ -59,21 +58,21 @@ fn add(a: i64, b: i64) -> i64 {
     a + b
 }
 
+// Return some binary data. We'll need this to get the worksheet.
+// A byte vector is what Workbook.save_to_buffer returns.
 #[rustler::nif]
-fn new_workbook() -> Box<dyn Any> {
-    let workbook = Workbook::new();
-
-    Box::new(workbook)
-}
-
-#[rustler::nif]
-fn write_to_workbook(workbook: &mut Workbook) -> Result<(), Atom> {
+fn get_binary() -> Result<Vec<u8>, Atom> {
     let mut workbook = Workbook::new();
-    let worksheet = workbook.add_worksheet();
-    worksheet.set_name("custom_sheet_name")?;
 
-    match workbook.save("demo.xlsx") {
-        Ok(_) => return Ok(()),
+    let worksheet = workbook.add_worksheet();
+
+    if let Err(_xlsx_error) = worksheet.write_string(0, 0, "Hello this is from binary") {
+        // TODO: Log the actual error details somewhere. Or return it somehow.
+        return Err(atoms::xlsx_generation_error());
+    }
+
+    match workbook.save_to_buffer() {
+        Ok(buf) => return Ok(buf),
         Err(_e) => {
             // Return an atom saying there was an error.
             // We can figure out later how to include more data

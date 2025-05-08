@@ -7,7 +7,14 @@ defmodule XlsxWriter do
 
   def test_new_workbook(), do: :erlang.nif_error(:nif_not_loaded)
 
-  def new_workbook(), do: :erlang.nif_error(:nif_not_loaded)
+  # To test that we can get a binary file back from rust code.
+  def get_binary(), do: :erlang.nif_error(:nif_not_loaded)
 
-  def write_to_workbook(), do: :erlang.nif_error(:nif_not_loaded)
+  def test_binary() do
+    {:ok, bytes} = get_binary() |> dbg
+    IO.puts("Got bytes :)")
+    IO.puts("Binary size: #{length(bytes)}")
+
+    :ok = File.write("demo2.xlsx", bytes)
+  end
 end
