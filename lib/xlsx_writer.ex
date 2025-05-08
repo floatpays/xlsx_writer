@@ -3,8 +3,6 @@ defmodule XlsxWriter do
     otp_app: :xlsx_writer,
     crate: :rustxlsxwriter
 
-  def add(_a, _b), do: :erlang.nif_error(:nif_not_loaded)
-
   def test_new_workbook(), do: :erlang.nif_error(:nif_not_loaded)
 
   # To test that we can get a binary file back from rust code.
