@@ -27,5 +27,7 @@ xlsx-*.tar
 
 
 demo*.xlsx
+foo*.xlsx
+.~*.xlsx#
 
 priv/native/*.so

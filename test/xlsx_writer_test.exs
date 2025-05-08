@@ -3,7 +3,12 @@ defmodule XlsxWriterTest do
 
   describe "write/1" do
     test "write xlsx file" do
-      assert XlsxWriter.RustXlsxWriter.test_new_workbook() == {:ok, {}}
+      data = [
+        {0, 0, "zero zero"},
+        {0, 1, "zero one"}
+      ]
+
+      assert {:ok, _} = XlsxWriter.write(data, "foo.xlsx")
     end
   end
 end

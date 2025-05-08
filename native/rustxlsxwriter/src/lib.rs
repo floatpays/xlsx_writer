@@ -53,6 +53,27 @@ fn add_worksheet_examples(workbook: &mut Workbook) -> Result<(), XlsxError> {
     Ok(())
 }
 
+#[rustler::nif]
+fn write(data: Vec<(u32, u16, String)>) -> Result<Vec<u8>, Atom> {
+    let mut workbook = Workbook::new();
+
+    let worksheet = workbook.add_worksheet();
+
+    for (row, col, data) in data {
+        worksheet.write(row, col, data);
+    }
+
+    match workbook.save_to_buffer() {
+        Ok(buf) => return Ok(buf),
+        Err(_e) => {
+            // Return an atom saying there was an error.
+            // We can figure out later how to include more data
+            // about the error.
+            return Err(atoms::xlsx_generation_error());
+        }
+    }
+}
+
 // Return some binary data. We'll need this to get the worksheet.
 // A byte vector is what Workbook.save_to_buffer returns.
 #[rustler::nif]
