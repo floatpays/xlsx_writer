@@ -1,6 +1,8 @@
 defmodule XlsxWriterTest do
   use ExUnit.Case
 
+  alias XlsxWriter.Workbook
+
   describe "write/1" do
     test "write xlsx file" do
       bird_content = File.read!("bird.jpeg")
@@ -22,14 +24,31 @@ defmodule XlsxWriterTest do
         {"zar", []}
       ]
 
-      assert {:ok, _} = XlsxWriter.write(sheets, "foo.xlsx")
+      assert {:ok, content} = XlsxWriter.Workbook.generate(sheets)
+
+      File.write!("test1.xlsx", content)
     end
 
-    # test "write xlsx file" do
-    #   Workbook.new()
-    #   |> Workbook.write(9, 0, "foo")
-    #   |> Workbook.set_colum_width(9, 30)
-    #   |> Workbook.write!()
-    # end
+    test "write xlsx file with porcelain" do
+      filename = "test2.xlsx"
+
+      sheet1 =
+        Workbook.new_sheet("sheet number one")
+        |> Workbook.write_with_format(0, 0, "col1", [:bold])
+        |> Workbook.write_with_format(0, 1, "col2", [:bold, {:align, :center}])
+        |> Workbook.write_with_format(0, 2, "col3", [:bold, {:align, :right}])
+        |> Workbook.set_column_width(0, 40)
+        |> Workbook.set_column_width(3, 80)
+        |> Workbook.write(1, 0, "row 2 col 1")
+        |> Workbook.write(1, 1, 1.0)
+        |> Workbook.write_formula(1, 2, "=B2 + 2")
+        |> Workbook.write(2, 0, Date.utc_today())
+        |> Workbook.write_formula(2, 1, "=PI()")
+        |> Workbook.write_image(3, 0, File.read!("bird.jpeg"))
+
+      {:ok, content} = Workbook.generate([sheet1])
+
+      File.write!(filename, content)
+    end
   end
 end

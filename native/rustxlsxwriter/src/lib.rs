@@ -1,4 +1,4 @@
-use rust_xlsxwriter::{ExcelDateTime, Format, FormatAlign, Image, Workbook, Worksheet, XlsxError};
+use rust_xlsxwriter::{ExcelDateTime, Format, FormatAlign, Image, Workbook, Worksheet, XlsxError, Formula};
 use rustler::{Binary, NifTaggedEnum};
 
 #[derive(NifTaggedEnum, PartialEq)]
@@ -22,6 +22,7 @@ enum CellData<'a> {
     ImagePath(String),
     Image(Binary<'a>),
     Date(u16, u8, u8),
+    Formula(String)
 }
 
 #[derive(NifTaggedEnum)]
@@ -47,7 +48,7 @@ fn write(sheets: Vec<(String, Vec<Sheet>)>) -> Result<Vec<u8>, String> {
             let _result = match instruction {
                 Sheet::SetColumnWidth(col, val) => worksheet.set_column_width(col, val),
                 Sheet::SetRowHeight(row, val) => worksheet.set_row_height(row, val),
-                Sheet::Write(col, row, data) => write_data(worksheet, col, row, data),
+                Sheet::Write(row, col, data) => write_data(worksheet, row, col, data),
             };
         }
     }
@@ -60,35 +61,36 @@ fn write(sheets: Vec<(String, Vec<Sheet>)>) -> Result<Vec<u8>, String> {
 
 fn write_data<'a, 'b>(
     worksheet: &'a mut Worksheet,
-    col: u32,
-    row: u16,
+    row: u32,
+    col: u16,
     data: CellData<'b>,
 ) -> Result<&'a mut Worksheet, XlsxError> {
     match data {
-        CellData::String(val) => worksheet.write(col, row, val),
+        CellData::String(val) => worksheet.write(row, col, val),
         CellData::StringWithFormat(val, formats) => {
             let format = apply_formats(Format::new(), &formats);
-            worksheet.write_with_format(col, row, val, &format)
+            worksheet.write_with_format(row, col, val, &format)
         }
-        CellData::Float(val) => worksheet.write(col, row, val),
+        CellData::Float(val) => worksheet.write(row, col, val),
         CellData::Date(year, month, day) => {
             let date_format = Format::new().set_num_format("yyyy-mm-dd");
 
             match ExcelDateTime::from_ymd(year, month, day) {
                 Err(e) => return Err(e),
-                Ok(date) => worksheet.write_with_format(6, 0, &date, &date_format),
+                Ok(date) => worksheet.write_with_format(row, col, &date, &date_format),
             }
         }
+        CellData::Formula(val) => worksheet.write(row, col, Formula::new(val)),
         CellData::ImagePath(val) => match Image::new(val) {
             Err(e) => return Err(e),
-            Ok(image) => worksheet.insert_image(col, row, &image),
+            Ok(image) => worksheet.insert_image(row, col, &image),
         },
         CellData::Image(binary) => {
             let val = binary.as_slice().to_vec();
 
             match Image::new_from_buffer(&val) {
                 Err(e) => return Err(e),
-                Ok(image) => worksheet.insert_image(col, row, &image),
+                Ok(image) => worksheet.insert_image(row, col, &image),
             }
         }
     }

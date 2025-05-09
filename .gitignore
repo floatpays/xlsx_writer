@@ -25,9 +25,7 @@ xlsx-*.tar
 # Rust binary artifacts
 /target/
 
-
-demo*.xlsx
-foo*.xlsx
+test*.xlsx
 .~*.xlsx#
 
 priv/native/*.so
