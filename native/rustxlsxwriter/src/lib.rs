@@ -102,9 +102,9 @@ fn write(data: Vec<(u32, u16, CellData)>) -> Result<Vec<u8>, Atom> {
     for (row, col, data) in data {
         println!("{} {} {}", row, col, data);
 
-        match data {
+        let _ = match data {
             CellData::String(val) => worksheet.write_string(row, col, val),
-            CellData::Float(val) => worksheet.write_number(row, col, val)
+            CellData::Float(val) => worksheet.write_number(row, col, val),
         };
     }
 
