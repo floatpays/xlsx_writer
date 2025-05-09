@@ -1,4 +1,4 @@
-use rust_xlsxwriter::{Image, Workbook};
+use rust_xlsxwriter::{ExcelDateTime, Format, Image, Workbook};
 use rustler::{Binary, NifTaggedEnum};
 
 #[derive(NifTaggedEnum)]
@@ -7,11 +7,12 @@ enum CellData<'a> {
     String(String),
     ImagePath(String),
     Image(Binary<'a>),
+    Date(u16, u8, u8),
 }
 
 #[derive(NifTaggedEnum)]
 enum Instruction<'a> {
-    Insert(u32, u16, CellData<'a>),
+    Write(u32, u16, CellData<'a>),
     SetColumnWidth(u16, u32),
     SetRowHeight(u32, u16),
 }
@@ -26,9 +27,17 @@ fn write(instructions: Vec<Instruction>) -> Result<Vec<u8>, String> {
         let _result = match instruction {
             Instruction::SetColumnWidth(col, val) => worksheet.set_column_width(col, val),
             Instruction::SetRowHeight(row, val) => worksheet.set_row_height(row, val),
-            Instruction::Insert(col, row, data) => match data {
+            Instruction::Write(col, row, data) => match data {
                 CellData::String(val) => worksheet.write_string(col, row, val),
                 CellData::Float(val) => worksheet.write_number(col, row, val),
+                CellData::Date(year, month, day) => {
+                    let date_format = Format::new().set_num_format("yyyy-mm-dd");
+
+                    match ExcelDateTime::from_ymd(year, month, day) {
+                        Err(e) => return Err(e.to_string()),
+                        Ok(date) => worksheet.write_with_format(6, 0, &date, &date_format),
+                    }
+                }
                 CellData::ImagePath(val) => match Image::new(val) {
                     Err(e) => return Err(e.to_string()),
                     Ok(image) => worksheet.insert_image(col, row, &image),
