@@ -25,44 +25,32 @@ enum CellData<'a> {
 }
 
 #[derive(NifTaggedEnum)]
-enum Instruction<'a> {
+enum Sheet<'a> {
     Write(u32, u16, CellData<'a>),
     SetColumnWidth(u16, u32),
     SetRowHeight(u32, u16),
 }
 
 #[rustler::nif]
-fn write(instructions: Vec<Instruction>) -> Result<Vec<u8>, String> {
+fn write(sheets: Vec<Vec<Sheet>>) -> Result<Vec<u8>, String> {
     let mut workbook = Workbook::new();
 
-    let worksheet = workbook.add_worksheet();
+    for sheet in sheets {
+        let worksheet = workbook.add_worksheet();
 
-    for instruction in instructions {
-        let _result = match instruction {
-            Instruction::SetColumnWidth(col, val) => worksheet.set_column_width(col, val),
-            Instruction::SetRowHeight(row, val) => worksheet.set_row_height(row, val),
-            Instruction::Write(col, row, data) => write_data(worksheet, col, row, data),
-        };
+        for instruction in sheet {
+            let _result = match instruction {
+                Sheet::SetColumnWidth(col, val) => worksheet.set_column_width(col, val),
+                Sheet::SetRowHeight(row, val) => worksheet.set_row_height(row, val),
+                Sheet::Write(col, row, data) => write_data(worksheet, col, row, data),
+            };
+        }
     }
 
     return match workbook.save_to_buffer() {
         Ok(buf) => Ok(buf),
         Err(e) => Err(e.to_string()),
     };
-}
-
-fn apply_formats(mut format: Format, formats: &[CellFormat]) -> Format {
-    for fmt in formats {
-        format = match fmt {
-            CellFormat::Bold => format.set_bold(),
-            CellFormat::Align(pos) => match pos {
-                CellAlignPos::Center => format.set_align(FormatAlign::Center),
-                CellAlignPos::Right => format.set_align(FormatAlign::Right),
-                CellAlignPos::Left => format.set_align(FormatAlign::Left),
-            },
-        };
-    }
-    return format;
 }
 
 fn write_data<'a, 'b>(
@@ -99,6 +87,20 @@ fn write_data<'a, 'b>(
             }
         }
     }
+}
+
+fn apply_formats(mut format: Format, formats: &[CellFormat]) -> Format {
+    for fmt in formats {
+        format = match fmt {
+            CellFormat::Bold => format.set_bold(),
+            CellFormat::Align(pos) => match pos {
+                CellAlignPos::Center => format.set_align(FormatAlign::Center),
+                CellAlignPos::Right => format.set_align(FormatAlign::Right),
+                CellAlignPos::Left => format.set_align(FormatAlign::Left),
+            },
+        };
+    }
+    return format;
 }
 
 rustler::init!("Elixir.XlsxWriter.RustXlsxWriter");
