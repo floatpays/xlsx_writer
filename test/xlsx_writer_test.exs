@@ -9,7 +9,7 @@ defmodule XlsxWriterTest do
         {0, 0, {:string, "foo"}},
         {0, 1, {:string, "bar"}},
         {1, 1, {:image_path, "bird.jpeg"}},
-        {1, 2, {:image, bird_content |> :binary.bin_to_list()}}
+        {1, 2, {:image, bird_content}}
       ]
 
       assert {:ok, _} = XlsxWriter.write(data, "foo.xlsx")

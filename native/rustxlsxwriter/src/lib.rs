@@ -1,16 +1,16 @@
 use rust_xlsxwriter::{Image, Workbook};
-use rustler::NifTaggedEnum;
+use rustler::{NifTaggedEnum, Binary};
 use std::fmt;
 
 #[derive(NifTaggedEnum)]
-enum CellData {
+enum CellData<'a> {
     Float(f64),
     String(String),
     ImagePath(String),
-    Image(Vec<u8>),
+    Image(Binary<'a>),
 }
 
-impl fmt::Display for CellData {
+impl<'a> fmt::Display for CellData<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             CellData::Float(val) => write!(f, "Float: {}", val),
@@ -39,13 +39,17 @@ fn write(data: Vec<(u32, u16, CellData)>) -> Result<Vec<u8>, String> {
                     Err(e) => return Err(e.to_string()),
                 },
             },
-            CellData::Image(val) => match Image::new_from_buffer(&val) {
-                Err(e) => return Err(e.to_string()),
+            CellData::Image(binary) => {
+                let val = binary.as_slice().to_vec();
 
-                Ok(image) => match worksheet.insert_image(row, col, &image) {
-                    Ok(val) => Ok(val),
+                match Image::new_from_buffer(&val) {
                     Err(e) => return Err(e.to_string()),
-                },
+
+                    Ok(image) => match worksheet.insert_image(row, col, &image) {
+                        Ok(val) => Ok(val),
+                        Err(e) => return Err(e.to_string()),
+                    },
+                }
             },
         };
     }
