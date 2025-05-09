@@ -1,5 +1,9 @@
-use rust_xlsxwriter::{IntoExcelData, ExcelDateTime, Format, Image, Workbook, XlsxError};
+use rust_xlsxwriter::{
+    ColNum, ExcelDateTime, Format, Image, IntoExcelData, RowNum, Workbook, Worksheet, XlsxError,
+};
 use rustler::Atom;
+use rustler::NifTaggedEnum;
+use std::fmt;
 
 mod atoms {
     rustler::atoms! {
@@ -53,14 +57,55 @@ fn add_worksheet_examples(workbook: &mut Workbook) -> Result<(), XlsxError> {
     Ok(())
 }
 
+#[derive(NifTaggedEnum)]
+enum CellData {
+    Float(f64),
+    String(String)
+}
+
+impl fmt::Display for CellData {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            CellData::Float(i) => write!(f, "Float: {}", i),
+            CellData::String(i) => write!(f, "String: {}", i),
+        }
+    }
+}
+
+impl IntoExcelData for CellData {
+    fn write(
+        self,
+        worksheet: &mut Worksheet,
+        row: RowNum,
+        col: ColNum,
+    ) -> Result<&mut Worksheet, XlsxError> {
+        worksheet.write(row, col, self)
+    }
+
+    fn write_with_format<'a>(
+        self,
+        worksheet: &'a mut Worksheet,
+        row: RowNum,
+        col: ColNum,
+        format: &Format,
+    ) -> Result<&'a mut Worksheet, XlsxError> {
+        worksheet.write_with_format(row, col, self, format)
+    }
+}
+
 #[rustler::nif]
-fn write(data: Vec<(u32, u16, String)>) -> Result<Vec<u8>, Atom> {
+fn write(data: Vec<(u32, u16, CellData)>) -> Result<Vec<u8>, Atom> {
     let mut workbook = Workbook::new();
 
     let worksheet = workbook.add_worksheet();
 
     for (row, col, data) in data {
-        worksheet.write(row, col, data);
+        println!("{} {} {}", row, col, data);
+
+        match data {
+            CellData::String(val) => worksheet.write_string(row, col, val),
+            CellData::Float(val) => worksheet.write_number(row, col, val)
+        };
     }
 
     match workbook.save_to_buffer() {

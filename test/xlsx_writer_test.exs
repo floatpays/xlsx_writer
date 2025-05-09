@@ -4,8 +4,8 @@ defmodule XlsxWriterTest do
   describe "write/1" do
     test "write xlsx file" do
       data = [
-        {0, 0, "zero zero"},
-        {0, 1, "zero one"}
+        {0, 0, {:string, "foo"}},
+        {0, 1, {:string, "bar"}}
       ]
 
       assert {:ok, _} = XlsxWriter.write(data, "foo.xlsx")
