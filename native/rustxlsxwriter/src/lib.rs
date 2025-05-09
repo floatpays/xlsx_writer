@@ -15,7 +15,7 @@ enum CellData {
     Float(f64),
     String(String),
     ImagePath(String),
-    Image(Vec<u8>)
+    Image(Vec<u8>),
 }
 
 impl fmt::Display for CellData {
@@ -28,7 +28,6 @@ impl fmt::Display for CellData {
         }
     }
 }
-
 
 #[rustler::nif]
 fn write(data: Vec<(u32, u16, CellData)>) -> Result<Vec<u8>, Atom> {
