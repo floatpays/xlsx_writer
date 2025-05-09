@@ -4,10 +4,4 @@ defmodule XlsxWriter.RustXlsxWriter do
     crate: :rustxlsxwriter
 
   def write(_data), do: :erlang.nif_error(:nif_not_loaded)
-
-  def test_new_workbook(), do: :erlang.nif_error(:nif_not_loaded)
-
-  def get_binary(), do: :erlang.nif_error(:nif_not_loaded)
-
-  def get_binary_with_image(_image_byte_list), do: :erlang.nif_error(:nif_not_loaded)
 end
