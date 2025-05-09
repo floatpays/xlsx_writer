@@ -32,11 +32,16 @@ enum Sheet<'a> {
 }
 
 #[rustler::nif]
-fn write(sheets: Vec<Vec<Sheet>>) -> Result<Vec<u8>, String> {
+fn write(sheets: Vec<(String, Vec<Sheet>)>) -> Result<Vec<u8>, String> {
     let mut workbook = Workbook::new();
 
-    for sheet in sheets {
+    for (sheet_name, sheet) in sheets {
         let worksheet = workbook.add_worksheet();
+
+        match worksheet.set_name(sheet_name) {
+            Err(e) => return Err(e.to_string()),
+            Ok(_) => (),
+        }
 
         for instruction in sheet {
             let _result = match instruction {
