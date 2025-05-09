@@ -1,10 +1,9 @@
-use rust_xlsxwriter::{
-    ColNum, Format, Image, IntoExcelData, RowNum, Workbook, Worksheet, XlsxError,
-};
+use rust_xlsxwriter::{Image, Workbook};
 use rustler::Atom;
 use rustler::NifTaggedEnum;
 use std::fmt;
 
+// TODO: do we really need this, we probably want better error messages
 mod atoms {
     rustler::atoms! {
         xlsx_generation_error,
@@ -30,27 +29,6 @@ impl fmt::Display for CellData {
     }
 }
 
-
-impl IntoExcelData for CellData {
-    fn write(
-        self,
-        worksheet: &mut Worksheet,
-        row: RowNum,
-        col: ColNum,
-    ) -> Result<&mut Worksheet, XlsxError> {
-        worksheet.write(row, col, self)
-    }
-
-    fn write_with_format<'a>(
-        self,
-        worksheet: &'a mut Worksheet,
-        row: RowNum,
-        col: ColNum,
-        format: &Format,
-    ) -> Result<&'a mut Worksheet, XlsxError> {
-        worksheet.write_with_format(row, col, self, format)
-    }
-}
 
 #[rustler::nif]
 fn write(data: Vec<(u32, u16, CellData)>) -> Result<Vec<u8>, Atom> {
