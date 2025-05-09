@@ -23,57 +23,25 @@ fn write(instructions: Vec<Instruction>) -> Result<Vec<u8>, String> {
     let worksheet = workbook.add_worksheet();
 
     for instruction in instructions {
-        let _ = match instruction {
-            Instruction::SetColumnWidth(col, val) => {
-                match worksheet.set_column_width(col, val) {
-                    Ok(val) => Ok(val),
-                    Err(e) => Err(e.to_string()),
-                }
+        let _result = match instruction {
+            Instruction::SetColumnWidth(col, val) => worksheet.set_column_width(col, val),
+            Instruction::SetRowHeight(row, val) => worksheet.set_row_height(row, val),
+            Instruction::Insert(col, row, data) => match data {
+                CellData::String(val) => worksheet.write_string(col, row, val),
+                CellData::Float(val) => worksheet.write_number(col, row, val),
+                CellData::ImagePath(val) => match Image::new(val) {
+                    Err(e) => return Err(e.to_string()),
+                    Ok(image) => worksheet.insert_image(col, row, &image),
+                },
+                CellData::Image(binary) => {
+                    let val = binary.as_slice().to_vec();
 
-            },
-            Instruction::SetRowHeight(row, val) => {
-                match worksheet.set_row_height(row, val) {
-                    Ok(val) => Ok(val),
-                    Err(e) => Err(e.to_string()),
-                }
-            },
-            Instruction::Insert(col, row, data) => {
-                match data {
-                    CellData::String(val) => {
-                        match worksheet.write_string(col, row, val) {
-                            Ok(val) => Ok(val),
-                            Err(e) => Err(e.to_string()),
-                        }
-
-                    },
-                    CellData::Float(val) => {
-                        match worksheet.write_number(col, row, val) {
-                            Ok(val) => Ok(val),
-                            Err(e) => Err(e.to_string()),
-                        }
-                    },
-                    CellData::ImagePath(val) => match Image::new(val) {
-                        Err(e) => Err(e.to_string()),
-
-                        Ok(image) => match worksheet.insert_image(col, row, &image) {
-                            Ok(val) => Ok(val),
-                            Err(e) => Err(e.to_string()),
-                        },
-                    },
-                    CellData::Image(binary) => {
-                        let val = binary.as_slice().to_vec();
-
-                        match Image::new_from_buffer(&val) {
-                            Err(e) => Err(e.to_string()),
-
-                            Ok(image) => match worksheet.insert_image(col, row, &image) {
-                                Ok(val) => Ok(val),
-                                Err(e) => Err(e.to_string()),
-                            },
-                        }
+                    match Image::new_from_buffer(&val) {
+                        Err(e) => return Err(e.to_string()),
+                        Ok(image) => worksheet.insert_image(col, row, &image),
                     }
                 }
-            }
+            },
         };
     }
 
