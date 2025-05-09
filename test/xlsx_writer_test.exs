@@ -20,5 +20,12 @@ defmodule XlsxWriterTest do
 
       assert {:ok, _} = XlsxWriter.write(data, "foo.xlsx")
     end
+
+    # test "write xlsx file" do
+    #   Workbook.new()
+    #   |> Workbook.write(9, 0, "foo")
+    #   |> Workbook.set_colum_width(9, 30)
+    #   |> Workbook.write!()
+    # end
   end
 end

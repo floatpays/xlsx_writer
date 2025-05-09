@@ -31,6 +31,20 @@ enum Instruction<'a> {
     SetRowHeight(u32, u16),
 }
 
+fn apply_formats(mut format: Format, formats: &[CellFormat]) -> Format {
+    for fmt in formats {
+        format = match fmt {
+            CellFormat::Bold => format.set_bold(),
+            CellFormat::Align(pos) => match pos {
+                CellAlignPos::Center => format.set_align(FormatAlign::Center),
+                CellAlignPos::Right => format.set_align(FormatAlign::Right),
+                CellAlignPos::Left => format.set_align(FormatAlign::Left),
+            },
+        };
+    }
+    format
+}
+
 #[rustler::nif]
 fn write(instructions: Vec<Instruction>) -> Result<Vec<u8>, String> {
     let mut workbook = Workbook::new();
@@ -44,20 +58,9 @@ fn write(instructions: Vec<Instruction>) -> Result<Vec<u8>, String> {
             Instruction::Write(col, row, data) => match data {
                 CellData::String(val) => worksheet.write(col, row, val),
                 CellData::StringWithFormat(val, formats) => {
-                    let mut merge_format = Format::new();
+                    let format = apply_formats(Format::new(), &formats);
 
-                    for format in formats {
-                        merge_format = match format {
-                            CellFormat::Bold => merge_format.set_bold(),
-                            CellFormat::Align(pos) => match pos {
-                                CellAlignPos::Center => merge_format.set_align(FormatAlign::Center),
-                                CellAlignPos::Right => merge_format.set_align(FormatAlign::Right),
-                                CellAlignPos::Left => merge_format.set_align(FormatAlign::Left),
-                            },
-                        }
-                    }
-
-                    worksheet.write_with_format(col, row, val, &merge_format)
+                    worksheet.write_with_format(col, row, val, &format)
                 }
                 CellData::Float(val) => worksheet.write(col, row, val),
                 CellData::Date(year, month, day) => {
