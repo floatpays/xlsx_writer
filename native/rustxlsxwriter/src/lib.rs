@@ -1,10 +1,24 @@
-use rust_xlsxwriter::{ExcelDateTime, Format, Image, Workbook};
+use rust_xlsxwriter::{ExcelDateTime, Format, FormatAlign, Image, Workbook};
 use rustler::{Binary, NifTaggedEnum};
+
+#[derive(NifTaggedEnum, PartialEq)]
+enum CellAlignPos {
+    Center,
+    Left,
+    Right
+}
+
+#[derive(NifTaggedEnum, PartialEq)]
+enum CellFormat {
+    Bold,
+    Align(CellAlignPos),
+}
 
 #[derive(NifTaggedEnum)]
 enum CellData<'a> {
     Float(f64),
     String(String),
+    StringWithFormat(String, Vec<CellFormat>),
     ImagePath(String),
     Image(Binary<'a>),
     Date(u16, u8, u8),
@@ -28,8 +42,24 @@ fn write(instructions: Vec<Instruction>) -> Result<Vec<u8>, String> {
             Instruction::SetColumnWidth(col, val) => worksheet.set_column_width(col, val),
             Instruction::SetRowHeight(row, val) => worksheet.set_row_height(row, val),
             Instruction::Write(col, row, data) => match data {
-                CellData::String(val) => worksheet.write_string(col, row, val),
-                CellData::Float(val) => worksheet.write_number(col, row, val),
+                CellData::String(val) => worksheet.write(col, row, val),
+                CellData::StringWithFormat(val, formats) => {
+                    let mut merge_format = Format::new();
+
+                    for format in formats {
+                        merge_format = match format {
+                            CellFormat::Bold => merge_format.set_bold(),
+                            CellFormat::Align(pos) => match pos {
+                                CellAlignPos::Center => merge_format.set_align(FormatAlign::Center),
+                                CellAlignPos::Right => merge_format.set_align(FormatAlign::Right),
+                                CellAlignPos::Left => merge_format.set_align(FormatAlign::Left),
+                            },
+                        }
+                    }
+
+                    worksheet.write_with_format(col, row, val, &merge_format)
+                }
+                CellData::Float(val) => worksheet.write(col, row, val),
                 CellData::Date(year, month, day) => {
                     let date_format = Format::new().set_num_format("yyyy-mm-dd");
 
