@@ -60,14 +60,16 @@ fn add_worksheet_examples(workbook: &mut Workbook) -> Result<(), XlsxError> {
 #[derive(NifTaggedEnum)]
 enum CellData {
     Float(f64),
-    String(String)
+    String(String),
+    Image(String),
 }
 
 impl fmt::Display for CellData {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            CellData::Float(i) => write!(f, "Float: {}", i),
-            CellData::String(i) => write!(f, "String: {}", i),
+            CellData::Float(val) => write!(f, "Float: {}", val),
+            CellData::String(val) => write!(f, "String: {}", val),
+            CellData::Image(val) => write!(f, "Image: {}", val),
         }
     }
 }
@@ -105,31 +107,15 @@ fn write(data: Vec<(u32, u16, CellData)>) -> Result<Vec<u8>, Atom> {
         let _ = match data {
             CellData::String(val) => worksheet.write_string(row, col, val),
             CellData::Float(val) => worksheet.write_number(row, col, val),
+            CellData::Image(val) => match Image::new(val) {
+                Err(_e) => return Err(atoms::xlsx_generation_error()),
+
+                Ok(image) => match worksheet.insert_image(row, col, &image) {
+                    Ok(val) => Ok(val),
+                    Err(_e) => return Err(atoms::xlsx_generation_error()),
+                },
+            },
         };
-    }
-
-    match workbook.save_to_buffer() {
-        Ok(buf) => return Ok(buf),
-        Err(_e) => {
-            // Return an atom saying there was an error.
-            // We can figure out later how to include more data
-            // about the error.
-            return Err(atoms::xlsx_generation_error());
-        }
-    }
-}
-
-// Return some binary data. We'll need this to get the worksheet.
-// A byte vector is what Workbook.save_to_buffer returns.
-#[rustler::nif]
-fn get_binary() -> Result<Vec<u8>, Atom> {
-    let mut workbook = Workbook::new();
-
-    let worksheet = workbook.add_worksheet();
-
-    if let Err(_xlsx_error) = worksheet.write_string(0, 0, "Hello this is from binary") {
-        // TODO: Log the actual error details somewhere. Or return it somehow.
-        return Err(atoms::xlsx_generation_error());
     }
 
     match workbook.save_to_buffer() {
