@@ -1,6 +1,5 @@
 use rust_xlsxwriter::{Image, Workbook};
-use rustler::{NifTaggedEnum, Binary};
-// use std::fmt;
+use rustler::{Binary, NifTaggedEnum};
 
 #[derive(NifTaggedEnum)]
 enum CellData<'a> {
@@ -8,53 +7,73 @@ enum CellData<'a> {
     String(String),
     ImagePath(String),
     Image(Binary<'a>),
-    ColumnWidth(u32),
-    RowHeight(u16)
 }
 
-// impl<'a> fmt::Display for CellData<'a> {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         match self {
-//             CellData::Float(val) => write!(f, "Float: {}", val),
-//             CellData::String(val) => write!(f, "String: {}", val),
-//             CellData::ImagePath(val) => write!(f, "Image: {}", val),
-//             CellData::Image(_val) => write!(f, "Image: <<binary>>"),
-//         }
-//     }
-// }
+#[derive(NifTaggedEnum)]
+enum Instruction<'a> {
+    Insert(u32, u16, CellData<'a>),
+    SetColumnWidth(u16, u32),
+    SetRowHeight(u32, u16),
+}
 
 #[rustler::nif]
-fn write(data: Vec<(u32, u16, CellData)>) -> Result<Vec<u8>, String> {
+fn write(instructions: Vec<Instruction>) -> Result<Vec<u8>, String> {
     let mut workbook = Workbook::new();
 
     let worksheet = workbook.add_worksheet();
 
-    for (row, col, data) in data {
-        let _ = match data {
-            CellData::String(val) => worksheet.write_string(row, col, val),
-            CellData::Float(val) => worksheet.write_number(row, col, val),
-            CellData::ImagePath(val) => match Image::new(val) {
-                Err(e) => return Err(e.to_string()),
-
-                Ok(image) => match worksheet.insert_image(row, col, &image) {
+    for instruction in instructions {
+        let _ = match instruction {
+            Instruction::SetColumnWidth(col, val) => {
+                match worksheet.set_column_width(col, val) {
                     Ok(val) => Ok(val),
-                    Err(e) => return Err(e.to_string()),
-                },
+                    Err(e) => Err(e.to_string()),
+                }
+
             },
-            CellData::Image(binary) => {
-                let val = binary.as_slice().to_vec();
-
-                match Image::new_from_buffer(&val) {
-                    Err(e) => return Err(e.to_string()),
-
-                    Ok(image) => match worksheet.insert_image(row, col, &image) {
-                        Ok(val) => Ok(val),
-                        Err(e) => return Err(e.to_string()),
-                    },
+            Instruction::SetRowHeight(row, val) => {
+                match worksheet.set_row_height(row, val) {
+                    Ok(val) => Ok(val),
+                    Err(e) => Err(e.to_string()),
                 }
             },
-            CellData::ColumnWidth(val) => worksheet.set_column_width(col, val),
-            CellData::RowHeight(val) => worksheet.set_row_height(row, val)
+            Instruction::Insert(col, row, data) => {
+                match data {
+                    CellData::String(val) => {
+                        match worksheet.write_string(col, row, val) {
+                            Ok(val) => Ok(val),
+                            Err(e) => Err(e.to_string()),
+                        }
+
+                    },
+                    CellData::Float(val) => {
+                        match worksheet.write_number(col, row, val) {
+                            Ok(val) => Ok(val),
+                            Err(e) => Err(e.to_string()),
+                        }
+                    },
+                    CellData::ImagePath(val) => match Image::new(val) {
+                        Err(e) => Err(e.to_string()),
+
+                        Ok(image) => match worksheet.insert_image(col, row, &image) {
+                            Ok(val) => Ok(val),
+                            Err(e) => Err(e.to_string()),
+                        },
+                    },
+                    CellData::Image(binary) => {
+                        let val = binary.as_slice().to_vec();
+
+                        match Image::new_from_buffer(&val) {
+                            Err(e) => Err(e.to_string()),
+
+                            Ok(image) => match worksheet.insert_image(col, row, &image) {
+                                Ok(val) => Ok(val),
+                                Err(e) => Err(e.to_string()),
+                            },
+                        }
+                    }
+                }
+            }
         };
     }
 

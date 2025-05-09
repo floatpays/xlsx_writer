@@ -6,15 +6,12 @@ defmodule XlsxWriterTest do
       bird_content = File.read!("bird.jpeg")
 
       data = [
-        {0, 0, {:string, "foo"}},
-        {10, 0, {:float, 10.12}},
-        {0, 1, {:string, "bar"}},
-        {1, 1, {:image_path, "bird.jpeg"}},
-        {1, 2, {:image, bird_content}},
-        # TOOD: we only need the column here, not the row
-        # how to do this?
-        {0, 0, {:column_width, 30}},
-        {0, 0, {:row_height, 30}}
+        {:insert, 0, 0, {:string, "this is new"}},
+        {:insert, 0, 1, {:float, 12.12}},
+        {:insert, 0, 3, {:image_path, "bird.jpeg"}},
+        {:insert, 1, 2, {:image, bird_content}},
+        {:set_column_width, 0, 30},
+        {:set_row_height, 0, 30}
       ]
 
       assert {:ok, _} = XlsxWriter.write(data, "foo.xlsx")
