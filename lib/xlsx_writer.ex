@@ -4,9 +4,10 @@ defmodule XlsxWriter.Workbook do
   def generate(sheets) when is_list(sheets) do
     # TODO: It might not be important to reverse the instructions here
     # but doing it to avoid potential confusion.
-    Enum.map(sheets, fn {name, instructions} ->
-      {name, Enum.reverse(instructions)}
-    end)
+    sheets =
+      Enum.map(sheets, fn {name, instructions} ->
+        {name, Enum.reverse(instructions)}
+      end)
 
     RustXlsxWriter.write(sheets)
   end
