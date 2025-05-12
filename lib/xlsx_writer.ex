@@ -1,8 +1,9 @@
 defmodule XlsxWriter.Workbook do
+  @moduledoc false
   alias XlsxWriter.RustXlsxWriter
 
   def generate(sheets) when is_list(sheets) do
-    # TODO: It might not be important to reverse the instructions here
+    # It might not be important to reverse the instructions here
     # but doing it to avoid potential confusion.
     sheets =
       Enum.map(sheets, fn {name, instructions} ->

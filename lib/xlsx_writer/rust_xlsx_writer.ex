@@ -1,4 +1,6 @@
 defmodule XlsxWriter.RustXlsxWriter do
+  @moduledoc false
+
   use RustlerPrecompiled,
     otp_app: :xlsx_writer,
     crate: :rustxlsxwriter,
