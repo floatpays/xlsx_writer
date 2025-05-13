@@ -1,10 +1,13 @@
 defmodule XlsxWriter.MixProject do
   use Mix.Project
 
+  @github_url "https://github.com/floatpays/xlsx_writer"
+  @version "0.1.0"
+
   def project do
     [
       app: :xlsx_writer,
-      version: "0.2.0",
+      version: @version,
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -24,6 +27,7 @@ defmodule XlsxWriter.MixProject do
     [
       {:rustler_precompiled, "~> 0.8"},
       {:rustler, "~> 0.36.1", runtime: false},
+      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:credo, "~> 1.4", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.3", only: [:dev, :test], runtime: false}
     ]
@@ -38,11 +42,12 @@ defmodule XlsxWriter.MixProject do
         "README*",
         "LICENSE*",
         "native/rustxlsxwriter/Cargo.toml",
-        "native/rustxlsxwriter/src"
+        "native/rustxlsxwriter/src",
+        "checksum-*.exs"
       ],
       maintainers: ["Wilhelm H Kirschbaum", "Willem Odendaal"],
       licenses: ["MIT"],
-      links: %{"GitHub" => "https://github.com/floatpays/xlsx_writer"}
+      links: %{"GitHub" => @github_url}
     ]
   end
 
