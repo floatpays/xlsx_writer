@@ -41,9 +41,9 @@ defmodule XlsxWriter.MixProject do
         "mix.exs",
         "README*",
         "LICENSE*",
-        "native/rustxlsxwriter/.cargo",
-        "native/rustxlsxwriter/src",
-        "native/rustxlsxwriter/Cargo*",
+        "native/xlsx_writer/.cargo",
+        "native/xlsx_writer/src",
+        "native/xlsx_writer/Cargo*",
         "checksum-*.exs"
       ],
       maintainers: ["Wilhelm H Kirschbaum", "Willem Odendaal"],

@@ -198,14 +198,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eded382c5f5f786b989652c49544c4877d9f015cc22e145a5ea8ea66c2921cd2"
 
 [[package]]
-name = "rustxlsxwriter"
-version = "0.1.2"
-dependencies = [
- "rust_xlsxwriter",
- "rustler",
-]
-
-[[package]]
 name = "simd-adler32"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -291,6 +283,14 @@ name = "windows_x86_64_msvc"
 version = "0.53.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "271414315aff87387382ec3d271b52d7ae78726f5d44ac98b4f4030c91880486"
+
+[[package]]
+name = "xlsx_writer"
+version = "0.1.2"
+dependencies = [
+ "rust_xlsxwriter",
+ "rustler",
+]
 
 [[package]]
 name = "zip"

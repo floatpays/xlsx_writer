@@ -26,7 +26,7 @@ defmodule XlsxWriter.RustXlsxWriter do
 
   use RustlerPrecompiled,
     otp_app: :xlsx_writer,
-    crate: :rustxlsxwriter,
+    crate: :xlsx_writer,
     base_url: "#{github_url}/releases/download/v#{version}",
     version: version,
     targets: targets,

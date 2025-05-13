@@ -1,11 +1,11 @@
 [package]
-name = "rustxlsxwriter"
+name = "xlsx_writer"
 version = "0.1.2"
 authors = []
 edition = "2021"
 
 [lib]
-name = "rustxlsxwriter"
+name = "xlsx_writer"
 crate-type = ["cdylib"]
 
 [dependencies]
