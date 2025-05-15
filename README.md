@@ -36,7 +36,7 @@ As per instruction: https://hexdocs.pm/rustler_precompiled/precompilation_guide.
 - release the package to Hex.pm (make sure your release includes the correct files).
 
 
-    mix rustler_precompiled.download Spreadsheet.Calamine --all
+    mix rustler_precompiled.download XlsxWriter.RustXlsxWriter --all
 
 
 ## Copyright and License
