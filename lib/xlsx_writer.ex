@@ -30,6 +30,14 @@ defmodule XlsxWriter.Workbook do
     {name, [instruction | instructions]}
   end
 
+  def write_with_format({name, instructions}, row, col, numeric_val, formats)
+      when is_number(numeric_val) do
+    instruction =
+      {:write, row, col, {:number_with_format, numeric_val, formats}}
+
+    {name, [instruction | instructions]}
+  end
+
   def write_image({name, instructions}, row, col, image_binary) do
     {name, [{:write, row, col, {:image, image_binary}} | instructions]}
   end

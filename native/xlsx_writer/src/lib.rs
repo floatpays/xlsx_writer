@@ -12,6 +12,8 @@ enum CellAlignPos {
 enum CellFormat {
     Bold,
     Align(CellAlignPos),
+    // Examples of numeric formats: https://docs.rs/rust_xlsxwriter/latest/rust_xlsxwriter/struct.Format.html#examples-2
+    NumFormat(String)
 }
 
 #[derive(NifTaggedEnum)]
@@ -19,6 +21,7 @@ enum CellData<'a> {
     Float(f64),
     String(String),
     StringWithFormat(String, Vec<CellFormat>),
+    NumberWithFormat(f64, Vec<CellFormat>),
     ImagePath(String),
     Image(Binary<'a>),
     Date(u16, u8, u8),
@@ -71,6 +74,11 @@ fn write_data<'a, 'b>(
             let format = apply_formats(Format::new(), &formats);
             worksheet.write_with_format(row, col, val, &format)
         }
+        CellData::NumberWithFormat(val, formats) => {
+            let format = apply_formats(Format::new(), &formats);
+            worksheet.write_number_with_format(row, col, val, &format)
+        }
+
         CellData::Float(val) => worksheet.write(row, col, val),
         CellData::Date(year, month, day) => {
             let date_format = Format::new().set_num_format("yyyy-mm-dd");
@@ -100,6 +108,7 @@ fn apply_formats(mut format: Format, formats: &[CellFormat]) -> Format {
     for fmt in formats {
         format = match fmt {
             CellFormat::Bold => format.set_bold(),
+            CellFormat::NumFormat(format_string) => format.set_num_format(format_string),
             CellFormat::Align(pos) => match pos {
                 CellAlignPos::Center => format.set_align(FormatAlign::Center),
                 CellAlignPos::Right => format.set_align(FormatAlign::Right),

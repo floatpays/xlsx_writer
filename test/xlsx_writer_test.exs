@@ -29,6 +29,22 @@ defmodule XlsxWriterTest do
       File.write!("test1.xlsx", content)
     end
 
+    test "write simple file with some plain text data" do
+      sheets = [
+        {"sheet1",
+         [
+           {:write, 2, 1, {:string, ""}},
+           {:write, 2, 0, {:string, "foo"}},
+           {:write, 0, 1, {:string, "h2"}},
+           {:write, 0, 0, {:string, "h1"}}
+         ]}
+      ]
+
+      assert {:ok, content} = XlsxWriter.Workbook.generate(sheets)
+
+      File.write!("test2.xlsx", content)
+    end
+
     test "write xlsx file with porcelain" do
       filename = "test2.xlsx"
 
@@ -45,6 +61,21 @@ defmodule XlsxWriterTest do
         |> Workbook.write(2, 0, Date.utc_today())
         |> Workbook.write_formula(2, 1, "=PI()")
         |> Workbook.write_image(3, 0, File.read!("bird.jpeg"))
+
+      {:ok, content} = Workbook.generate([sheet1])
+
+      File.write!(filename, content)
+    end
+
+    test "write xlsx file with numeric format" do
+      filename = "test2.xlsx"
+
+      sheet1 =
+        Workbook.new_sheet("sheet number one")
+        |> Workbook.write_with_format(0, 0, 999.99, [
+          {:num_format, "[$R] #,##0.00"}
+        ])
+        |> Workbook.write_with_format(1, 0, 888, [{:num_format, "0,000.00"}])
 
       {:ok, content} = Workbook.generate([sheet1])
 
