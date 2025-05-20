@@ -29,14 +29,17 @@ be found at <https://hexdocs.pm/xlsx_writer>.
 
 As per instruction: https://hexdocs.pm/rustler_precompiled/precompilation_guide.html
 
-- release a new tag
+- update version number in mix.exs, and in this file.
+- release a new tag for the new version, eg. "v0.1.4"
 - push the code to your repository with the new tag: git push origin main --tags
-- wait for all NIFs to be built
+  - wait for github actions to complete successfully.
+    (then all NIFs will be built)
 - run the mix rustler_precompiled.download task (with the flag --all)
+  `mix rustler_precompiled.download XlsxWriter.RustXlsxWriter --all`
+
 - release the package to Hex.pm (make sure your release includes the correct files).
+  `mix hex.publish`
 
-
-    mix rustler_precompiled.download XlsxWriter.RustXlsxWriter --all
 
 
 ## Copyright and License
