@@ -14,7 +14,7 @@ by adding `xlsx_writer` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:xlsx_writer, "~> 0.1.3"}
+    {:xlsx_writer, "~> 0.1.4"}
   ]
 end
 ```
