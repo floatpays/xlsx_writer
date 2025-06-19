@@ -26,6 +26,8 @@ defmodule XlsxWriterTest do
 
       assert {:ok, content} = XlsxWriter.Workbook.generate(sheets)
 
+      assert <<80, _>> <> _ = content
+
       File.write!("test1.xlsx", content)
     end
 

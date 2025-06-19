@@ -10,7 +10,13 @@ defmodule XlsxWriter.Workbook do
         {name, Enum.reverse(instructions)}
       end)
 
-    RustXlsxWriter.write(sheets)
+    case RustXlsxWriter.write(sheets) do
+      {:ok, content} ->
+        {:ok, IO.iodata_to_binary(content)}
+
+      other ->
+        other
+    end
   end
 
   def new_sheet(name) when is_binary(name), do: {name, []}
