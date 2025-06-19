@@ -62,7 +62,11 @@ defmodule XlsxWriterTest do
         |> Workbook.write_formula(2, 1, "=PI()")
         |> Workbook.write_image(3, 0, File.read!("bird.jpeg"))
 
-      {:ok, content} = Workbook.generate([sheet1])
+      sheet2 =
+        Workbook.new_sheet("sheet number two")
+        |> Workbook.write(0, 0, "col1")
+
+      {:ok, content} = Workbook.generate([sheet1, sheet2])
 
       File.write!(filename, content)
     end
