@@ -55,6 +55,7 @@ defmodule XlsxWriterTest do
         |> Workbook.write_with_format(0, 0, "col1", [:bold])
         |> Workbook.write_with_format(0, 1, "col2", [:bold, {:align, :center}])
         |> Workbook.write_with_format(0, 2, "col3", [:bold, {:align, :right}])
+        |> Workbook.write(0, 3, nil)
         |> Workbook.set_column_width(0, 40)
         |> Workbook.set_column_width(3, 80)
         |> Workbook.write(1, 0, "row 2 col 1")
@@ -86,6 +87,13 @@ defmodule XlsxWriterTest do
       {:ok, content} = Workbook.generate([sheet1])
 
       File.write!(filename, content)
+    end
+
+    test "write xlsx file with unsupported format" do
+      assert_raise XlsxWriter.Error, fn ->
+        Workbook.new_sheet("sheet number one")
+        |> Workbook.write(0, 0, NaiveDateTime.utc_now())
+      end
     end
   end
 end

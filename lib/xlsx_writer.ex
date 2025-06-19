@@ -58,9 +58,24 @@ defmodule XlsxWriter.Workbook do
 
   defp to_rust_val(val) do
     case val do
-      %Date{} = date -> {:date, date.year, date.month, date.day}
-      val when is_binary(val) -> {:string, val}
-      val when is_float(val) -> {:float, val}
+      %Date{} = date ->
+        {:date, date.year, date.month, date.day}
+
+      val when is_binary(val) ->
+        {:string, val}
+
+      val when is_float(val) ->
+        {:float, val}
+
+      val when is_nil(val) ->
+        {:string, ""}
+
+      val when is_atom(val) ->
+        {:string, Atom.to_string(val)}
+
+      other ->
+        raise XlsxWriter.Error,
+              "The data type for value \"#{inspect(other)}\" is not supported."
     end
   end
 end
