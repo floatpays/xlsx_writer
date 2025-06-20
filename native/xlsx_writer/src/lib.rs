@@ -24,8 +24,9 @@ enum CellData<'a> {
     NumberWithFormat(f64, Vec<CellFormat>),
     ImagePath(String),
     Image(Binary<'a>),
-    Date(u16, u8, u8),
-    Formula(String)
+    Date(String),
+    DateTime(String),
+    Formula(String),
 }
 
 #[derive(NifTaggedEnum)]
@@ -80,14 +81,22 @@ fn write_data<'a, 'b>(
         }
 
         CellData::Float(val) => worksheet.write(row, col, val),
-        CellData::Date(year, month, day) => {
+        CellData::Date(iso8601) => {
             let date_format = Format::new().set_num_format("yyyy-mm-dd");
 
-            match ExcelDateTime::from_ymd(year, month, day) {
+            match ExcelDateTime::parse_from_str(&iso8601) {
                 Err(e) => return Err(e),
                 Ok(date) => worksheet.write_with_format(row, col, &date, &date_format),
             }
-        }
+        },
+        CellData::DateTime(iso8601) => {
+            let date_format = Format::new().set_num_format("yyyy-mm-ddThh:mm:ss");
+
+            match ExcelDateTime::parse_from_str(&iso8601) {
+                Err(e) => return Err(e),
+                Ok(date) => worksheet.write_with_format(row, col, &date, &date_format),
+            }
+        },
         CellData::Formula(val) => worksheet.write(row, col, Formula::new(val)),
         CellData::ImagePath(val) => match Image::new(val) {
             Err(e) => return Err(e),

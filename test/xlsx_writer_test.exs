@@ -57,13 +57,16 @@ defmodule XlsxWriterTest do
         |> Workbook.write_with_format(0, 2, "col3", [:bold, {:align, :right}])
         |> Workbook.write(0, 3, nil)
         |> Workbook.set_column_width(0, 40)
-        |> Workbook.set_column_width(3, 80)
+        |> Workbook.set_column_width(3, 60)
         |> Workbook.write(1, 0, "row 2 col 1")
         |> Workbook.write(1, 1, 1.0)
         |> Workbook.write_formula(1, 2, "=B2 + 2")
-        |> Workbook.write(2, 0, Date.utc_today())
         |> Workbook.write_formula(2, 1, "=PI()")
         |> Workbook.write_image(3, 0, File.read!("bird.jpeg"))
+        |> Workbook.write(4, 3, 1)
+        |> Workbook.write(5, 3, DateTime.utc_now())
+        |> Workbook.write(6, 3, NaiveDateTime.utc_now())
+        |> Workbook.write(7, 3, Date.utc_today())
 
       sheet2 =
         Workbook.new_sheet("sheet number two")

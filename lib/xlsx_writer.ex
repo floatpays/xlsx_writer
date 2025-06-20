@@ -56,16 +56,25 @@ defmodule XlsxWriter.Workbook do
     {name, [{:set_row_height, row, height} | instructions]}
   end
 
-  defguardp is_primitive(val)
-            when is_float(val) or is_binary(val) or is_integer(val)
-
   defp to_rust_val(val) do
     case val do
       %Date{} = date ->
-        {:date, date.year, date.month, date.day}
+        {:date, Date.to_iso8601(date)}
 
-      val when is_primitive(val) ->
+      %DateTime{} = datetime ->
+        {:date_time, DateTime.to_iso8601(datetime)}
+
+      %NaiveDateTime{} = datetime ->
+        {:date_time, NaiveDateTime.to_iso8601(datetime)}
+
+      val when is_binary(val) ->
         {:string, val}
+
+      val when is_float(val) ->
+        {:float, val}
+
+      val when is_integer(val) ->
+        {:float, val}
 
       val when is_nil(val) ->
         {:string, ""}
