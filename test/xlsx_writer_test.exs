@@ -17,7 +17,7 @@ defmodule XlsxWriterTest do
            {:write, 0, 1, {:float, 12.12}},
            {:write, 0, 3, {:image_path, "bird.jpeg"}},
            {:write, 1, 2, {:image, bird_content}},
-           {:write, 2, 0, {:date, 2024, 10, 10}},
+           {:write, 2, 0, {:date, "2020-01-01"}},
            {:set_column_width, 0, 30},
            {:set_row_height, 0, 30}
          ]},
@@ -95,7 +95,7 @@ defmodule XlsxWriterTest do
     test "write xlsx file with unsupported format" do
       assert_raise XlsxWriter.Error, fn ->
         Workbook.new_sheet("sheet number one")
-        |> Workbook.write(0, 0, NaiveDateTime.utc_now())
+        |> Workbook.write(0, 0, self())
       end
     end
   end
