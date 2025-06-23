@@ -67,6 +67,7 @@ defmodule XlsxWriterTest do
         |> Workbook.write(5, 3, DateTime.utc_now())
         |> Workbook.write(6, 3, NaiveDateTime.utc_now())
         |> Workbook.write(7, 3, Date.utc_today())
+        |> Workbook.write(8, 3, Decimal.new("20.12"))
 
       sheet2 =
         Workbook.new_sheet("sheet number two")

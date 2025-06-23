@@ -58,6 +58,9 @@ defmodule XlsxWriter.Workbook do
 
   defp to_rust_val(val) do
     case val do
+      %Decimal{} = amount ->
+        {:float, Decimal.to_float(amount)}
+
       %Date{} = date ->
         {:date, Date.to_iso8601(date)}
 

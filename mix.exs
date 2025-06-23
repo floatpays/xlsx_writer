@@ -25,14 +25,16 @@ defmodule XlsxWriter.MixProject do
 
   defp deps do
     [
+      {:decimal, "~> 2.0"},
       {:rustler_precompiled, "~> 0.8"},
       {:rustler, "~> 0.36.1", runtime: false},
-      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
-      {:dialyxir, "~> 1.3", only: [:dev, :test], runtime: false},
 
-      # Code style
+      # Dev tools
       {:credo, "~> 1.4", only: [:dev], runtime: false},
-      {:quokka, "~> 2.6", only: [:dev], runtime: false}
+      {:quokka, "~> 2.6", only: [:dev], runtime: false},
+      {:dialyxir, "~> 1.3", only: [:dev, :test], runtime: false},
+      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
+      {:igniter, "~> 0.5", only: [:dev]}
     ]
   end
 
