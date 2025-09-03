@@ -232,7 +232,7 @@ The package is available on [Hex](https://hex.pm/packages/xlsx_writer). Add `xls
 ```elixir
 def deps do
   [
-    {:xlsx_writer, "~> 0.3.6"}
+    {:xlsx_writer, "~> 0.5.0"}
   ]
 end
 ```
