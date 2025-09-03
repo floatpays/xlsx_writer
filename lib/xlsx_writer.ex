@@ -1,4 +1,4 @@
-defmodule XlsxWriter.Workbook do
+defmodule XlsxWriter do
   @moduledoc false
   alias XlsxWriter.RustXlsxWriter
 

@@ -18,17 +18,15 @@ A high-performance Elixir library for creating Excel (.xlsx) spreadsheets. Built
 ## Quick Start
 
 ```elixir
-alias XlsxWriter.Workbook
-
 # Create a simple spreadsheet
 {:ok, content} =
-  Workbook.new_sheet("Sales Data")
-  |> Workbook.write(0, 0, "Product", format: [:bold])
-  |> Workbook.write(0, 1, "Sales", format: [:bold])
-  |> Workbook.write(1, 0, "Widget A")
-  |> Workbook.write(1, 1, 1500.50, format: [{:num_format, "$#,##0.00"}])
+  XlsxWriter.new_sheet("Sales Data")
+  |> XlsxWriter.write(0, 0, "Product", format: [:bold])
+  |> XlsxWriter.write(0, 1, "Sales", format: [:bold])
+  |> XlsxWriter.write(1, 0, "Widget A")
+  |> XlsxWriter.write(1, 1, 1500.50, format: [{:num_format, "$#,##0.00"}])
   |> List.wrap()
-  |> Workbook.generate()
+  |> XlsxWriter.generate()
 
 File.write!("sales.xlsx", content)
 ```
@@ -39,26 +37,26 @@ File.write!("sales.xlsx", content)
 filename = "test2.xlsx"
 
 sheet1 =
-  Workbook.new_sheet("sheet number one")
-  |> Workbook.write(0, 0, "col1", format: [:bold])
-  |> Workbook.write(0, 1, "col2", format: [:bold, {:align, :center}])
-  |> Workbook.write(0, 2, "col3", format: [:bold, {:align, :right}])
-  |> Workbook.write(0, 3, nil)
-  |> Workbook.set_column_width(0, 40)
-  |> Workbook.set_column_width(3, 60)
-  |> Workbook.write(1, 0, "row 2 col 1")
-  |> Workbook.write(1, 1, 1.0)
-  |> Workbook.write_formula(1, 2, "=B2 + 2")
-  |> Workbook.write_formula(2, 1, "=PI()")
-  |> Workbook.write_image(3, 0, File.read!("bird.jpeg"))
-  |> Workbook.write(4, 3, 1)
-  |> Workbook.write(5, 3, DateTime.utc_now())
-  |> Workbook.write(6, 3, NaiveDateTime.utc_now())
-  |> Workbook.write(7, 3, Date.utc_today())
+  XlsxWriter.new_sheet("sheet number one")
+  |> XlsxWriter.write(0, 0, "col1", format: [:bold])
+  |> XlsxWriter.write(0, 1, "col2", format: [:bold, {:align, :center}])
+  |> XlsxWriter.write(0, 2, "col3", format: [:bold, {:align, :right}])
+  |> XlsxWriter.write(0, 3, nil)
+  |> XlsxWriter.set_column_width(0, 40)
+  |> XlsxWriter.set_column_width(3, 60)
+  |> XlsxWriter.write(1, 0, "row 2 col 1")
+  |> XlsxWriter.write(1, 1, 1.0)
+  |> XlsxWriter.write_formula(1, 2, "=B2 + 2")
+  |> XlsxWriter.write_formula(2, 1, "=PI()")
+  |> XlsxWriter.write_image(3, 0, File.read!("bird.jpeg"))
+  |> XlsxWriter.write(4, 3, 1)
+  |> XlsxWriter.write(5, 3, DateTime.utc_now())
+  |> XlsxWriter.write(6, 3, NaiveDateTime.utc_now())
+  |> XlsxWriter.write(7, 3, Date.utc_today())
 
 sheet2 =
-  Workbook.new_sheet("sheet number two")
-  |> Workbook.write(0, 0, "col1")
+  XlsxWriter.new_sheet("sheet number two")
+  |> XlsxWriter.write(0, 0, "col1")
 
 {:ok, content} = Workbook.generate([sheet1, sheet2])
 
@@ -72,29 +70,27 @@ File.write!(filename, content)
 XlsxWriter supports various data types and formatting options:
 
 ```elixir
-alias XlsxWriter.Workbook
-
 sheet =
-  Workbook.new_sheet("Data Types Example")
+  XlsxWriter.new_sheet("Data Types Example")
   # Strings with formatting
-  |> Workbook.write(0, 0, "Bold Text", format: [:bold])
-  |> Workbook.write(0, 1, "Centered", format: [{:align, :center}])
-  |> Workbook.write(0, 2, "Right Aligned", format: [{:align, :right}])
+  |> XlsxWriter.write(0, 0, "Bold Text", format: [:bold])
+  |> XlsxWriter.write(0, 1, "Centered", format: [{:align, :center}])
+  |> XlsxWriter.write(0, 2, "Right Aligned", format: [{:align, :right}])
   
   # Numbers and decimals
-  |> Workbook.write(1, 0, 42)
-  |> Workbook.write(1, 1, 3.14159)
-  |> Workbook.write(1, 2, Decimal.new("99.99"))
+  |> XlsxWriter.write(1, 0, 42)
+  |> XlsxWriter.write(1, 1, 3.14159)
+  |> XlsxWriter.write(1, 2, Decimal.new("99.99"))
   
   # Date and time
-  |> Workbook.write(2, 0, Date.utc_today())
-  |> Workbook.write(2, 1, DateTime.utc_now())
-  |> Workbook.write(2, 2, NaiveDateTime.utc_now())
+  |> XlsxWriter.write(2, 0, Date.utc_today())
+  |> XlsxWriter.write(2, 1, DateTime.utc_now())
+  |> XlsxWriter.write(2, 2, NaiveDateTime.utc_now())
   
   # Formulas
-  |> Workbook.write_formula(3, 0, "=B2 * 2")
-  |> Workbook.write_formula(3, 1, "=PI()")
-  |> Workbook.write_formula(3, 2, "=TODAY()")
+  |> XlsxWriter.write_formula(3, 0, "=B2 * 2")
+  |> XlsxWriter.write_formula(3, 1, "=PI()")
+  |> XlsxWriter.write_formula(3, 2, "=TODAY()")
 
 {:ok, content} = Workbook.generate([sheet])
 File.write!("data_types.xlsx", content)
@@ -106,13 +102,13 @@ Apply custom number formats to cells:
 
 ```elixir
 sheet =
-  Workbook.new_sheet("Formatted Numbers")
+  XlsxWriter.new_sheet("Formatted Numbers")
   # Currency format
-  |> Workbook.write(0, 0, 1234.56, format: [{:num_format, "[$R] #,##0.00"}])
+  |> XlsxWriter.write(0, 0, 1234.56, format: [{:num_format, "[$R] #,##0.00"}])
   # Thousands separator
-  |> Workbook.write(1, 0, 98765, format: [{:num_format, "0,000.00"}])
+  |> XlsxWriter.write(1, 0, 98765, format: [{:num_format, "0,000.00"}])
   # Percentage
-  |> Workbook.write(2, 0, 0.75, format: [{:num_format, "0.00%"}])
+  |> XlsxWriter.write(2, 0, 0.75, format: [{:num_format, "0.00%"}])
 
 {:ok, content} = Workbook.generate([sheet])
 File.write!("formatted_numbers.xlsx", content)
@@ -126,17 +122,17 @@ Add images and control column/row dimensions:
 image_data = File.read!("logo.png")
 
 sheet =
-  Workbook.new_sheet("Layout Example")
+  XlsxWriter.new_sheet("Layout Example")
   # Set column widths
-  |> Workbook.set_column_width(0, 30)
-  |> Workbook.set_column_width(1, 50)
+  |> XlsxWriter.set_column_width(0, 30)
+  |> XlsxWriter.set_column_width(1, 50)
   
   # Set row height
-  |> Workbook.set_row_height(0, 40)
+  |> XlsxWriter.set_row_height(0, 40)
   
   # Add images
-  |> Workbook.write_image(0, 0, image_data)
-  |> Workbook.write(0, 1, "Logo Description")
+  |> XlsxWriter.write_image(0, 0, image_data)
+  |> XlsxWriter.write(0, 1, "Logo Description")
 
 {:ok, content} = Workbook.generate([sheet])
 File.write!("with_images.xlsx", content)
@@ -148,18 +144,18 @@ Create workbooks with multiple sheets:
 
 ```elixir
 summary_sheet =
-  Workbook.new_sheet("Summary")
-  |> Workbook.write(0, 0, "Report Summary", format: [:bold])
-  |> Workbook.write(1, 0, "Total Records: 1000")
+  XlsxWriter.new_sheet("Summary")
+  |> XlsxWriter.write(0, 0, "Report Summary", format: [:bold])
+  |> XlsxWriter.write(1, 0, "Total Records: 1000")
 
 details_sheet =
-  Workbook.new_sheet("Details")
-  |> Workbook.write(0, 0, "ID", format: [:bold])
-  |> Workbook.write(0, 1, "Name", format: [:bold])
-  |> Workbook.write(0, 2, "Amount", format: [:bold])
-  |> Workbook.write(1, 0, 1)
-  |> Workbook.write(1, 1, "Item A")
-  |> Workbook.write(1, 2, 99.99)
+  XlsxWriter.new_sheet("Details")
+  |> XlsxWriter.write(0, 0, "ID", format: [:bold])
+  |> XlsxWriter.write(0, 1, "Name", format: [:bold])
+  |> XlsxWriter.write(0, 2, "Amount", format: [:bold])
+  |> XlsxWriter.write(1, 0, 1)
+  |> XlsxWriter.write(1, 1, "Item A")
+  |> XlsxWriter.write(1, 2, 99.99)
 
 {:ok, content} = Workbook.generate([summary_sheet, details_sheet])
 File.write!("multi_sheet.xlsx", content)
@@ -172,38 +168,38 @@ XlsxWriter supports extensive cell formatting through the `format:` parameter. C
 ### Font Formatting
 ```elixir
 # Bold text
-|> Workbook.write(0, 0, "Bold Text", format: [:bold])
+|> XlsxWriter.write(0, 0, "Bold Text", format: [:bold])
 ```
 
 ### Alignment
 ```elixir
 # Text alignment options
-|> Workbook.write(0, 0, "Left", format: [{:align, :left}])
-|> Workbook.write(0, 1, "Center", format: [{:align, :center}])  
-|> Workbook.write(0, 2, "Right", format: [{:align, :right}])
+|> XlsxWriter.write(0, 0, "Left", format: [{:align, :left}])
+|> XlsxWriter.write(0, 1, "Center", format: [{:align, :center}])  
+|> XlsxWriter.write(0, 2, "Right", format: [{:align, :right}])
 ```
 
 ### Number Formatting
 ```elixir
 # Currency
-|> Workbook.write(0, 0, 1234.56, format: [{:num_format, "$#,##0.00"}])
-|> Workbook.write(0, 1, 1234.56, format: [{:num_format, "[$€] #,##0.00"}])
+|> XlsxWriter.write(0, 0, 1234.56, format: [{:num_format, "$#,##0.00"}])
+|> XlsxWriter.write(0, 1, 1234.56, format: [{:num_format, "[$€] #,##0.00"}])
 
 # Percentages
-|> Workbook.write(1, 0, 0.75, format: [{:num_format, "0.00%"}])
+|> XlsxWriter.write(1, 0, 0.75, format: [{:num_format, "0.00%"}])
 
 # Thousands separator
-|> Workbook.write(2, 0, 98765, format: [{:num_format, "#,##0"}])
+|> XlsxWriter.write(2, 0, 98765, format: [{:num_format, "#,##0"}])
 
 # Custom formats
-|> Workbook.write(3, 0, 42, format: [{:num_format, "000.00"}])
+|> XlsxWriter.write(3, 0, 42, format: [{:num_format, "000.00"}])
 ```
 
 ### Combining Formats
 ```elixir
 # Multiple formatting options can be combined
-|> Workbook.write(0, 0, "Bold & Centered", format: [:bold, {:align, :center}])
-|> Workbook.write(1, 0, 1500.00, format: [:bold, {:num_format, "$#,##0.00"}])
+|> XlsxWriter.write(0, 0, "Bold & Centered", format: [:bold, {:align, :center}])
+|> XlsxWriter.write(1, 0, 1500.00, format: [:bold, {:num_format, "$#,##0.00"}])
 ```
 
 ### Supported Format Options
