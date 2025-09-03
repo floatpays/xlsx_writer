@@ -2,9 +2,38 @@
 
 <!-- MDOC !-->
 
-A fast Elixir library for writing Excel files using Rust.
+A high-performance Elixir library for creating Excel (.xlsx) spreadsheets. Built with the powerful [rust_xlsxwriter](https://github.com/jmcnamara/rust_xlsxwriter) crate via Rustler NIF, providing excellent speed and memory efficiency.
 
-## Usage
+## Features
+
+- ⚡ **Fast**: Leverages Rust for high-performance spreadsheet generation
+- 🧠 **Memory efficient**: Handles large datasets without excessive memory usage
+- 📊 **Rich formatting**: Support for fonts, colors, alignment, number formats, and more
+- 🖼️ **Images**: Embed images directly into spreadsheets
+- 📐 **Layout control**: Set column widths, row heights, and cell dimensions
+- 🧮 **Formulas**: Write Excel formulas and functions
+- 📄 **Multiple sheets**: Create workbooks with multiple worksheets
+- 🔧 **Simple API**: Clean, pipe-friendly Elixir interface
+
+## Quick Start
+
+```elixir
+alias XlsxWriter.Workbook
+
+# Create a simple spreadsheet
+{:ok, content} =
+  Workbook.new_sheet("Sales Data")
+  |> Workbook.write(0, 0, "Product", format: [:bold])
+  |> Workbook.write(0, 1, "Sales", format: [:bold])
+  |> Workbook.write(1, 0, "Widget A")
+  |> Workbook.write(1, 1, 1500.50, format: [{:num_format, "$#,##0.00"}])
+  |> List.wrap()
+  |> Workbook.generate()
+
+File.write!("sales.xlsx", content)
+```
+
+## Detailed Usage
 
 ```elixir
 filename = "test2.xlsx"
@@ -138,7 +167,7 @@ File.write!("multi_sheet.xlsx", content)
 
 ## Installation
 
-Add `xlsx_writer` to your list of dependencies in `mix.exs`:
+The package is available on [Hex](https://hex.pm/packages/xlsx_writer). Add `xlsx_writer` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
@@ -148,7 +177,15 @@ def deps do
 end
 ```
 
-Documentation can be found at [HexDocs](https://hexdocs.pm/xlsx_writer).
+Then run:
+
+```bash
+mix deps.get
+```
+
+## Documentation
+
+Full documentation is available at [HexDocs](https://hexdocs.pm/xlsx_writer).
 
 ## Development
 
@@ -161,6 +198,22 @@ Follow the [rustler_precompiled guide](https://hexdocs.pm/rustler_precompiled/pr
 3. Wait for GitHub Actions to build all NIFs
 4. Download precompiled assets: `mix rustler_precompiled.download XlsxWriter.RustXlsxWriter --all`
 5. Publish to Hex: `mix hex.publish`
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+
+### Running Tests
+
+```bash
+mix test
+```
+
+### Building Documentation
+
+```bash
+mix docs
+```
 
 ## Copyright and License
 

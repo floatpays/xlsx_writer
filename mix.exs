@@ -58,6 +58,6 @@ defmodule XlsxWriter.MixProject do
   end
 
   defp description do
-    "Writes Xlsx spreadsheet using the rust_xlsxwriter package, via a Rustler NIF."
+    "A fast Elixir library for writing Excel (.xlsx) files using Rust. Built with the rust_xlsxwriter crate via Rustler NIF for high performance spreadsheet generation."
   end
 end
