@@ -165,6 +165,70 @@ details_sheet =
 File.write!("multi_sheet.xlsx", content)
 ```
 
+## Formatting Options
+
+XlsxWriter supports extensive cell formatting through the `format:` parameter. Currently implemented formatting options include:
+
+### Font Formatting
+```elixir
+# Bold text
+|> Workbook.write(0, 0, "Bold Text", format: [:bold])
+```
+
+### Alignment
+```elixir
+# Text alignment options
+|> Workbook.write(0, 0, "Left", format: [{:align, :left}])
+|> Workbook.write(0, 1, "Center", format: [{:align, :center}])  
+|> Workbook.write(0, 2, "Right", format: [{:align, :right}])
+```
+
+### Number Formatting
+```elixir
+# Currency
+|> Workbook.write(0, 0, 1234.56, format: [{:num_format, "$#,##0.00"}])
+|> Workbook.write(0, 1, 1234.56, format: [{:num_format, "[$€] #,##0.00"}])
+
+# Percentages
+|> Workbook.write(1, 0, 0.75, format: [{:num_format, "0.00%"}])
+
+# Thousands separator
+|> Workbook.write(2, 0, 98765, format: [{:num_format, "#,##0"}])
+
+# Custom formats
+|> Workbook.write(3, 0, 42, format: [{:num_format, "000.00"}])
+```
+
+### Combining Formats
+```elixir
+# Multiple formatting options can be combined
+|> Workbook.write(0, 0, "Bold & Centered", format: [:bold, {:align, :center}])
+|> Workbook.write(1, 0, 1500.00, format: [:bold, {:num_format, "$#,##0.00"}])
+```
+
+### Supported Format Options
+
+| Format Type | Option | Example |
+|-------------|--------|---------|
+| **Font** | `:bold` | `format: [:bold]` |
+| **Alignment** | `{:align, :left}` | `format: [{:align, :left}]` |
+| | `{:align, :center}` | `format: [{:align, :center}]` |
+| | `{:align, :right}` | `format: [{:align, :right}]` |
+| **Numbers** | `{:num_format, "format_string"}` | `format: [{:num_format, "$#,##0.00"}]` |
+
+### Common Number Format Strings
+
+| Format | Description | Example Output |
+|--------|-------------|----------------|
+| `"#,##0.00"` | Thousands separator with 2 decimals | `1,234.56` |
+| `"$#,##0.00"` | Currency (USD) | `$1,234.56` |
+| `"0.00%"` | Percentage | `12.34%` |
+| `"0.000E+00"` | Scientific notation | `1.235E+03` |
+| `"mm/dd/yyyy"` | Date format | `12/25/2023` |
+| `"h:mm AM/PM"` | Time format | `2:30 PM` |
+
+> **Note**: XlsxWriter currently implements a subset of the formatting options available in the underlying `rust_xlsxwriter` library. Additional formatting features like colors, borders, and advanced font properties may be added in future releases.
+
 ## Installation
 
 The package is available on [Hex](https://hex.pm/packages/xlsx_writer). Add `xlsx_writer` to your list of dependencies in `mix.exs`:
