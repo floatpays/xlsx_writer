@@ -2,7 +2,7 @@
 
 <!-- MDOC !-->
 
-Xlsx Writer
+A fast Elixir library for writing Excel files using Rust.
 
 ## Usage
 
@@ -38,8 +38,7 @@ File.write!(filename, content)
 
 ## Installation
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `xlsx_writer` to your list of dependencies in `mix.exs`:
+Add `xlsx_writer` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
@@ -49,28 +48,19 @@ def deps do
 end
 ```
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at <https://hexdocs.pm/xlsx_writer>.
+Documentation can be found at [HexDocs](https://hexdocs.pm/xlsx_writer).
 
 ## Development
 
 ### Publishing a new version
 
-As per instruction: https://hexdocs.pm/rustler_precompiled/precompilation_guide.html
+Follow the [rustler_precompiled guide](https://hexdocs.pm/rustler_precompiled/precompilation_guide.html):
 
-- update version number in mix.exs, and in this file.
-- release a new tag for the new version, eg. "v0.1.4"
-- push the code to your repository with the new tag: git push origin main --tags
-  - wait for github actions to complete successfully.
-    (then all NIFs will be built)
-- run the mix rustler_precompiled.download task (with the flag --all)
-  `mix rustler_precompiled.download XlsxWriter.RustXlsxWriter --all`
-
-- release the package to Hex.pm (make sure your release includes the correct files).
-  `mix hex.publish`
-
-
+1. Update version number in `mix.exs` and this README
+2. Create and push a new tag: `git tag v0.1.x && git push origin main --tags`
+3. Wait for GitHub Actions to build all NIFs
+4. Download precompiled assets: `mix rustler_precompiled.download XlsxWriter.RustXlsxWriter --all`
+5. Publish to Hex: `mix hex.publish`
 
 ## Copyright and License
 
