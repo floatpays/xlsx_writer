@@ -19,14 +19,14 @@ A high-performance Elixir library for creating Excel (.xlsx) spreadsheets. Built
 
 ```elixir
 # Create a simple spreadsheet
-{:ok, content} =
+sheet =
   XlsxWriter.new_sheet("Sales Data")
   |> XlsxWriter.write(0, 0, "Product", format: [:bold])
   |> XlsxWriter.write(0, 1, "Sales", format: [:bold])
   |> XlsxWriter.write(1, 0, "Widget A")
   |> XlsxWriter.write(1, 1, 1500.50, format: [{:num_format, "$#,##0.00"}])
-  |> List.wrap()
-  |> XlsxWriter.generate()
+
+{:ok, content} = XlsxWriter.generate([sheet])
 
 File.write!("sales.xlsx", content)
 ```
