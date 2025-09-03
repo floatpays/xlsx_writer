@@ -2,7 +2,7 @@ defmodule XlsxWriter.MixProject do
   use Mix.Project
 
   @github_url "https://github.com/floatpays/xlsx_writer"
-  @version "0.3.5"
+  @version "0.3.6"
 
   def project do
     [

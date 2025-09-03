@@ -1,3 +1,7 @@
+# v0.3.6
+
+- No changes, just a release fix
+
 # v0.3.5
 
 ## improvements
