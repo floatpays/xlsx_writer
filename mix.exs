@@ -40,7 +40,6 @@ defmodule XlsxWriter.MixProject do
 
   defp package do
     [
-      organization: "floatpays",
       files: [
         "lib",
         "mix.exs",
