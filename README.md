@@ -36,6 +36,106 @@ sheet2 =
 File.write!(filename, content)
 ```
 
+## Advanced Usage
+
+### Data Types and Formatting
+
+XlsxWriter supports various data types and formatting options:
+
+```elixir
+alias XlsxWriter.Workbook
+
+sheet =
+  Workbook.new_sheet("Data Types Example")
+  # Strings with formatting
+  |> Workbook.write_with_format(0, 0, "Bold Text", [:bold])
+  |> Workbook.write_with_format(0, 1, "Centered", [{:align, :center}])
+  |> Workbook.write_with_format(0, 2, "Right Aligned", [{:align, :right}])
+  
+  # Numbers and decimals
+  |> Workbook.write(1, 0, 42)
+  |> Workbook.write(1, 1, 3.14159)
+  |> Workbook.write(1, 2, Decimal.new("99.99"))
+  
+  # Date and time
+  |> Workbook.write(2, 0, Date.utc_today())
+  |> Workbook.write(2, 1, DateTime.utc_now())
+  |> Workbook.write(2, 2, NaiveDateTime.utc_now())
+  
+  # Formulas
+  |> Workbook.write_formula(3, 0, "=B2 * 2")
+  |> Workbook.write_formula(3, 1, "=PI()")
+  |> Workbook.write_formula(3, 2, "=TODAY()")
+
+{:ok, content} = Workbook.generate([sheet])
+File.write!("data_types.xlsx", content)
+```
+
+### Number Formatting
+
+Apply custom number formats to cells:
+
+```elixir
+sheet =
+  Workbook.new_sheet("Formatted Numbers")
+  # Currency format
+  |> Workbook.write_with_format(0, 0, 1234.56, [{:num_format, "[$R] #,##0.00"}])
+  # Thousands separator
+  |> Workbook.write_with_format(1, 0, 98765, [{:num_format, "0,000.00"}])
+  # Percentage
+  |> Workbook.write_with_format(2, 0, 0.75, [{:num_format, "0.00%"}])
+
+{:ok, content} = Workbook.generate([sheet])
+File.write!("formatted_numbers.xlsx", content)
+```
+
+### Images and Layout
+
+Add images and control column/row dimensions:
+
+```elixir
+image_data = File.read!("logo.png")
+
+sheet =
+  Workbook.new_sheet("Layout Example")
+  # Set column widths
+  |> Workbook.set_column_width(0, 30)
+  |> Workbook.set_column_width(1, 50)
+  
+  # Set row height
+  |> Workbook.set_row_height(0, 40)
+  
+  # Add images
+  |> Workbook.write_image(0, 0, image_data)
+  |> Workbook.write(0, 1, "Logo Description")
+
+{:ok, content} = Workbook.generate([sheet])
+File.write!("with_images.xlsx", content)
+```
+
+### Multiple Sheets
+
+Create workbooks with multiple sheets:
+
+```elixir
+summary_sheet =
+  Workbook.new_sheet("Summary")
+  |> Workbook.write_with_format(0, 0, "Report Summary", [:bold])
+  |> Workbook.write(1, 0, "Total Records: 1000")
+
+details_sheet =
+  Workbook.new_sheet("Details")
+  |> Workbook.write_with_format(0, 0, "ID", [:bold])
+  |> Workbook.write_with_format(0, 1, "Name", [:bold])
+  |> Workbook.write_with_format(0, 2, "Amount", [:bold])
+  |> Workbook.write(1, 0, 1)
+  |> Workbook.write(1, 1, "Item A")
+  |> Workbook.write(1, 2, 99.99)
+
+{:ok, content} = Workbook.generate([summary_sheet, details_sheet])
+File.write!("multi_sheet.xlsx", content)
+```
+
 ## Installation
 
 Add `xlsx_writer` to your list of dependencies in `mix.exs`:
@@ -43,7 +143,7 @@ Add `xlsx_writer` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:xlsx_writer, "~> 0.1.4"}
+    {:xlsx_writer, "~> 0.3.6"}
   ]
 end
 ```
