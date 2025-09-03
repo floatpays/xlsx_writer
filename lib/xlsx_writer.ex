@@ -21,23 +21,29 @@ defmodule XlsxWriter.Workbook do
 
   def new_sheet(name) when is_binary(name), do: {name, []}
 
-  def write({name, instructions}, row, col, val) do
-    {name, [{:write, row, col, to_rust_val(val)} | instructions]}
+  def write({name, instructions}, row, col, val, opts \\ []) do
+    case Keyword.get(opts, :format) do
+      nil ->
+        {name, [{:write, row, col, to_rust_val(val)} | instructions]}
+      
+      formats when is_list(formats) ->
+        write_with_format({name, instructions}, row, col, val, formats)
+    end
   end
 
   def write_formula({name, instructions}, row, col, val) do
     {name, [{:write, row, col, {:formula, val}} | instructions]}
   end
 
-  def write_with_format({name, instructions}, row, col, val, formats)
-      when is_binary(val) do
+  defp write_with_format({name, instructions}, row, col, val, formats)
+       when is_binary(val) do
     instruction = {:write, row, col, {:string_with_format, val, formats}}
 
     {name, [instruction | instructions]}
   end
 
-  def write_with_format({name, instructions}, row, col, numeric_val, formats)
-      when is_number(numeric_val) do
+  defp write_with_format({name, instructions}, row, col, numeric_val, formats)
+       when is_number(numeric_val) do
     instruction =
       {:write, row, col, {:number_with_format, numeric_val, formats}}
 

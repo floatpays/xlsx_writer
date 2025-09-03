@@ -11,9 +11,9 @@ filename = "test2.xlsx"
 
 sheet1 =
   Workbook.new_sheet("sheet number one")
-  |> Workbook.write_with_format(0, 0, "col1", [:bold])
-  |> Workbook.write_with_format(0, 1, "col2", [:bold, {:align, :center}])
-  |> Workbook.write_with_format(0, 2, "col3", [:bold, {:align, :right}])
+  |> Workbook.write(0, 0, "col1", format: [:bold])
+  |> Workbook.write(0, 1, "col2", format: [:bold, {:align, :center}])
+  |> Workbook.write(0, 2, "col3", format: [:bold, {:align, :right}])
   |> Workbook.write(0, 3, nil)
   |> Workbook.set_column_width(0, 40)
   |> Workbook.set_column_width(3, 60)
@@ -48,9 +48,9 @@ alias XlsxWriter.Workbook
 sheet =
   Workbook.new_sheet("Data Types Example")
   # Strings with formatting
-  |> Workbook.write_with_format(0, 0, "Bold Text", [:bold])
-  |> Workbook.write_with_format(0, 1, "Centered", [{:align, :center}])
-  |> Workbook.write_with_format(0, 2, "Right Aligned", [{:align, :right}])
+  |> Workbook.write(0, 0, "Bold Text", format: [:bold])
+  |> Workbook.write(0, 1, "Centered", format: [{:align, :center}])
+  |> Workbook.write(0, 2, "Right Aligned", format: [{:align, :right}])
   
   # Numbers and decimals
   |> Workbook.write(1, 0, 42)
@@ -79,11 +79,11 @@ Apply custom number formats to cells:
 sheet =
   Workbook.new_sheet("Formatted Numbers")
   # Currency format
-  |> Workbook.write_with_format(0, 0, 1234.56, [{:num_format, "[$R] #,##0.00"}])
+  |> Workbook.write(0, 0, 1234.56, format: [{:num_format, "[$R] #,##0.00"}])
   # Thousands separator
-  |> Workbook.write_with_format(1, 0, 98765, [{:num_format, "0,000.00"}])
+  |> Workbook.write(1, 0, 98765, format: [{:num_format, "0,000.00"}])
   # Percentage
-  |> Workbook.write_with_format(2, 0, 0.75, [{:num_format, "0.00%"}])
+  |> Workbook.write(2, 0, 0.75, format: [{:num_format, "0.00%"}])
 
 {:ok, content} = Workbook.generate([sheet])
 File.write!("formatted_numbers.xlsx", content)
@@ -120,14 +120,14 @@ Create workbooks with multiple sheets:
 ```elixir
 summary_sheet =
   Workbook.new_sheet("Summary")
-  |> Workbook.write_with_format(0, 0, "Report Summary", [:bold])
+  |> Workbook.write(0, 0, "Report Summary", format: [:bold])
   |> Workbook.write(1, 0, "Total Records: 1000")
 
 details_sheet =
   Workbook.new_sheet("Details")
-  |> Workbook.write_with_format(0, 0, "ID", [:bold])
-  |> Workbook.write_with_format(0, 1, "Name", [:bold])
-  |> Workbook.write_with_format(0, 2, "Amount", [:bold])
+  |> Workbook.write(0, 0, "ID", format: [:bold])
+  |> Workbook.write(0, 1, "Name", format: [:bold])
+  |> Workbook.write(0, 2, "Amount", format: [:bold])
   |> Workbook.write(1, 0, 1)
   |> Workbook.write(1, 1, "Item A")
   |> Workbook.write(1, 2, 99.99)

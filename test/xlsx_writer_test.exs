@@ -52,9 +52,9 @@ defmodule XlsxWriterTest do
 
       sheet1 =
         Workbook.new_sheet("sheet number one")
-        |> Workbook.write_with_format(0, 0, "col1", [:bold])
-        |> Workbook.write_with_format(0, 1, "col2", [:bold, {:align, :center}])
-        |> Workbook.write_with_format(0, 2, "col3", [:bold, {:align, :right}])
+        |> Workbook.write(0, 0, "col1", format: [:bold])
+        |> Workbook.write(0, 1, "col2", format: [:bold, {:align, :center}])
+        |> Workbook.write(0, 2, "col3", format: [:bold, {:align, :right}])
         |> Workbook.write(0, 3, nil)
         |> Workbook.set_column_width(0, 40)
         |> Workbook.set_column_width(3, 60)
@@ -83,10 +83,10 @@ defmodule XlsxWriterTest do
 
       sheet1 =
         Workbook.new_sheet("sheet number one")
-        |> Workbook.write_with_format(0, 0, 999.99, [
+        |> Workbook.write(0, 0, 999.99, format: [
           {:num_format, "[$R] #,##0.00"}
         ])
-        |> Workbook.write_with_format(1, 0, 888, [{:num_format, "0,000.00"}])
+        |> Workbook.write(1, 0, 888, format: [{:num_format, "0,000.00"}])
 
       {:ok, content} = Workbook.generate([sheet1])
 
