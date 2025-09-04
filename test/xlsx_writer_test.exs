@@ -1,5 +1,6 @@
 defmodule XlsxWriterTest do
   use ExUnit.Case
+  doctest XlsxWriter
 
   describe "write/1" do
     test "write xlsx file" do
