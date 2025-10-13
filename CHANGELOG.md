@@ -1,3 +1,11 @@
+# v0.6.0
+
+## improvements
+
+- Update rustler dependency from 0.36.2 to 0.37.0 - see [rust_xlsxwriter changes](https://github.com/rusterlium/rustler/blob/main/CHANGELOG.md#v0370---2025-11-22)
+- Update rust_xlsxwriter dependency from 0.90.0 to 0.90.2 - see [rust_xlsxwriter changes](https://github.com/jmcnamara/rust_xlsxwriter/blob/main/CHANGELOG.md#version-0902---october-8-2024)
+- Update various Elixir dependencies (igniter, ex_doc, file_system, rewrite)
+
 # v0.5.0
 
 ## breaking

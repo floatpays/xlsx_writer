@@ -2,7 +2,7 @@ defmodule XlsxWriter.MixProject do
   use Mix.Project
 
   @github_url "https://github.com/floatpays/xlsx_writer"
-  @version "0.5.0"
+  @version "0.6.0"
 
   def project do
     [
@@ -27,7 +27,7 @@ defmodule XlsxWriter.MixProject do
     [
       {:decimal, "~> 2.0"},
       {:rustler_precompiled, "~> 0.8"},
-      {:rustler, "~> 0.36.1", runtime: false},
+      {:rustler, "~> 0.37.1", runtime: false},
 
       # Dev tools
       {:credo, "~> 1.4", only: [:dev], runtime: false},

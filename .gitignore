@@ -29,3 +29,4 @@ test*.xlsx
 .~*.xlsx#
 
 priv/native/*.so
+/native/xlsx_writer/target/
