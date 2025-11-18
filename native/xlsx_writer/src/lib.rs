@@ -270,13 +270,10 @@ fn apply_formats(mut format: Format, formats: &[CellFormat]) -> Format {
                 CellAlignPos::Left => format.set_align(FormatAlign::Left),
             },
             CellFormat::BgColor(color_hex) => {
-                // Parse hex color string (e.g., "#FF0000" or "FF0000") to RGB integer
-                let hex_str = color_hex.trim_start_matches('#');
-                if let Ok(rgb) = u32::from_str_radix(hex_str, 16) {
-                    let color = Color::from(rgb);
+                if let Some(color) = parse_hex_color(color_hex) {
                     format.set_background_color(color)
                 } else {
-                    format // Return format unchanged if color parsing fails
+                    format
                 }
             }
             CellFormat::Pattern(pattern) => match pattern {
@@ -286,10 +283,7 @@ fn apply_formats(mut format: Format, formats: &[CellFormat]) -> Format {
                 CellPattern::Gray0625 => format.set_pattern(FormatPattern::Gray0625),
             },
             CellFormat::FontColor(color_hex) => {
-                // Parse hex color string for font color
-                let hex_str = color_hex.trim_start_matches('#');
-                if let Ok(rgb) = u32::from_str_radix(hex_str, 16) {
-                    let color = Color::from(rgb);
+                if let Some(color) = parse_hex_color(color_hex) {
                     format.set_font_color(color)
                 } else {
                     format
@@ -328,45 +322,35 @@ fn apply_formats(mut format: Format, formats: &[CellFormat]) -> Format {
                 format.set_border_right(border_style)
             },
             CellFormat::BorderColor(color_hex) => {
-                let hex_str = color_hex.trim_start_matches('#');
-                if let Ok(rgb) = u32::from_str_radix(hex_str, 16) {
-                    let color = Color::from(rgb);
+                if let Some(color) = parse_hex_color(color_hex) {
                     format.set_border_color(color)
                 } else {
                     format
                 }
             },
             CellFormat::BorderTopColor(color_hex) => {
-                let hex_str = color_hex.trim_start_matches('#');
-                if let Ok(rgb) = u32::from_str_radix(hex_str, 16) {
-                    let color = Color::from(rgb);
+                if let Some(color) = parse_hex_color(color_hex) {
                     format.set_border_top_color(color)
                 } else {
                     format
                 }
             },
             CellFormat::BorderBottomColor(color_hex) => {
-                let hex_str = color_hex.trim_start_matches('#');
-                if let Ok(rgb) = u32::from_str_radix(hex_str, 16) {
-                    let color = Color::from(rgb);
+                if let Some(color) = parse_hex_color(color_hex) {
                     format.set_border_bottom_color(color)
                 } else {
                     format
                 }
             },
             CellFormat::BorderLeftColor(color_hex) => {
-                let hex_str = color_hex.trim_start_matches('#');
-                if let Ok(rgb) = u32::from_str_radix(hex_str, 16) {
-                    let color = Color::from(rgb);
+                if let Some(color) = parse_hex_color(color_hex) {
                     format.set_border_left_color(color)
                 } else {
                     format
                 }
             },
             CellFormat::BorderRightColor(color_hex) => {
-                let hex_str = color_hex.trim_start_matches('#');
-                if let Ok(rgb) = u32::from_str_radix(hex_str, 16) {
-                    let color = Color::from(rgb);
+                if let Some(color) = parse_hex_color(color_hex) {
                     format.set_border_right_color(color)
                 } else {
                     format
@@ -375,6 +359,15 @@ fn apply_formats(mut format: Format, formats: &[CellFormat]) -> Format {
         };
     }
     return format;
+}
+
+/// Parses a hex color string (e.g., "#FF0000" or "FF0000") into a Color.
+/// Returns None if the hex string is invalid.
+fn parse_hex_color(color_hex: &str) -> Option<Color> {
+    let hex_str = color_hex.trim_start_matches('#');
+    u32::from_str_radix(hex_str, 16)
+        .ok()
+        .map(Color::from)
 }
 
 fn convert_border_style(style: &BorderStyle) -> FormatBorder {
