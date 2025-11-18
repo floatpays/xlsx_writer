@@ -43,6 +43,7 @@ defmodule XlsxWriter do
 
   ### Layout & Structure
   - `set_column_width/3`, `set_row_height/3` - Size columns and rows
+  - `set_column_range_width/4`, `set_row_range_height/4` - Size multiple columns/rows at once
   - `freeze_panes/3` - Lock rows/columns when scrolling
   - `merge_range/7` - Combine multiple cells
   - `hide_row/2`, `hide_column/2` - Hide rows/columns
@@ -437,6 +438,60 @@ defmodule XlsxWriter do
   """
   def set_row_height({name, instructions}, row, height) do
     {name, [{:set_row_height, row, height} | instructions]}
+  end
+
+  @doc """
+  Sets the width for a range of columns in the sheet.
+
+  This is a convenience function to set the same width for multiple consecutive columns.
+
+  ## Parameters
+
+  - `sheet` - The sheet tuple `{name, instructions}`
+  - `first_col` - The first column index (0-based)
+  - `last_col` - The last column index (0-based, inclusive)
+  - `width` - The width value in pixels
+
+  ## Returns
+
+  Updated sheet tuple with the new column range width instruction.
+
+  ## Examples
+
+      iex> sheet = XlsxWriter.new_sheet("Test")
+      iex> sheet = XlsxWriter.set_column_range_width(sheet, 0, 4, 20)
+      iex> {"Test", [{:set_column_range_width, 0, 4, 20}]} = sheet
+
+  """
+  def set_column_range_width({name, instructions}, first_col, last_col, width) do
+    {name, [{:set_column_range_width, first_col, last_col, width} | instructions]}
+  end
+
+  @doc """
+  Sets the height for a range of rows in the sheet.
+
+  This is a convenience function to set the same height for multiple consecutive rows.
+
+  ## Parameters
+
+  - `sheet` - The sheet tuple `{name, instructions}`
+  - `first_row` - The first row index (0-based)
+  - `last_row` - The last row index (0-based, inclusive)
+  - `height` - The height value in pixels
+
+  ## Returns
+
+  Updated sheet tuple with the new row range height instruction.
+
+  ## Examples
+
+      iex> sheet = XlsxWriter.new_sheet("Test")
+      iex> sheet = XlsxWriter.set_row_range_height(sheet, 0, 9, 25)
+      iex> {"Test", [{:set_row_range_height, 0, 9, 25}]} = sheet
+
+  """
+  def set_row_range_height({name, instructions}, first_row, last_row, height) do
+    {name, [{:set_row_range_height, first_row, last_row, height} | instructions]}
   end
 
   @doc """

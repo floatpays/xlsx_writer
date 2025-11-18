@@ -11,7 +11,7 @@ A high-performance Elixir library for creating Excel (.xlsx) spreadsheets. Built
 - 📊 **Rich formatting**: Support for fonts, colors, borders, alignment, number formats, and more
 - 🎨 **Cell borders**: Apply borders with 13 styles and customizable colors per side
 - 🖼️ **Images**: Embed images directly into spreadsheets
-- 📐 **Layout control**: Set column widths, row heights, freeze panes, hide rows/columns
+- 📐 **Layout control**: Set column widths, row heights, bulk sizing for ranges, freeze panes, hide rows/columns
 - 🧮 **Formulas**: Write Excel formulas and functions
 - 🔗 **Hyperlinks**: Create clickable URLs with custom display text
 - ✅ **Booleans**: Native Excel TRUE/FALSE values
@@ -346,10 +346,16 @@ sheet =
   # Set column widths
   |> XlsxWriter.set_column_width(0, 30)
   |> XlsxWriter.set_column_width(1, 50)
-  
+
+  # Set multiple columns at once (columns A-E to 120 pixels)
+  |> XlsxWriter.set_column_range_width(0, 4, 120)
+
   # Set row height
   |> XlsxWriter.set_row_height(0, 40)
-  
+
+  # Set multiple rows at once (rows 1-10 to 25 pixels)
+  |> XlsxWriter.set_row_range_height(1, 10, 25)
+
   # Add images
   |> XlsxWriter.write_image(0, 0, image_data)
   |> XlsxWriter.write(0, 1, "Logo Description")

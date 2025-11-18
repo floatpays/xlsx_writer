@@ -82,16 +82,17 @@ defmodule XlsxWriterTest do
 
       sheet1 =
         XlsxWriter.new_sheet("sheet number one")
-        |> XlsxWriter.write(0, 0, 999.99, format: [
-          {:num_format, "[$R] #,##0.00"}
-        ])
+        |> XlsxWriter.write(0, 0, 999.99,
+          format: [
+            {:num_format, "[$R] #,##0.00"}
+          ]
+        )
         |> XlsxWriter.write(1, 0, 888, format: [{:num_format, "0,000.00"}])
 
       {:ok, content} = XlsxWriter.generate([sheet1])
 
       File.write!(filename, content)
     end
-
   end
 
   describe "write_boolean/5" do
@@ -101,7 +102,9 @@ defmodule XlsxWriterTest do
         |> XlsxWriter.write(0, 0, "Boolean Column", format: [:bold])
         |> XlsxWriter.write_boolean(1, 0, true)
         |> XlsxWriter.write_boolean(2, 0, false)
-        |> XlsxWriter.write_boolean(3, 0, true, format: [:bold, {:align, :center}])
+        |> XlsxWriter.write_boolean(3, 0, true,
+          format: [:bold, {:align, :center}]
+        )
 
       assert {:ok, content} = XlsxWriter.generate([sheet])
       assert <<80, _>> <> _ = content
@@ -209,11 +212,94 @@ defmodule XlsxWriterTest do
     end
   end
 
+  describe "column and row range operations" do
+    test "set_column_range_width/4 generates valid xlsx" do
+      sheet =
+        XlsxWriter.new_sheet("Column Ranges")
+        |> XlsxWriter.write(0, 0, "Col A")
+        |> XlsxWriter.write(0, 1, "Col B")
+        |> XlsxWriter.write(0, 2, "Col C")
+        |> XlsxWriter.write(0, 3, "Col D")
+        |> XlsxWriter.write(0, 4, "Col E")
+        # Set columns A-E (0-4) to width 120 pixels
+        |> XlsxWriter.set_column_range_width(0, 4, 120)
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+
+    test "set_row_range_height/4 generates valid xlsx" do
+      sheet =
+        XlsxWriter.new_sheet("Row Ranges")
+        |> XlsxWriter.write(0, 0, "Row 0")
+        |> XlsxWriter.write(1, 0, "Row 1")
+        |> XlsxWriter.write(2, 0, "Row 2")
+        |> XlsxWriter.write(3, 0, "Row 3")
+        |> XlsxWriter.write(4, 0, "Row 4")
+        # Set rows 0-4 to height 30 pixels
+        |> XlsxWriter.set_row_range_height(0, 4, 30)
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+
+    test "combining column and row range operations" do
+      sheet =
+        XlsxWriter.new_sheet("Combined Ranges")
+        |> XlsxWriter.write(0, 0, "A1")
+        |> XlsxWriter.write(0, 1, "B1")
+        |> XlsxWriter.write(0, 2, "C1")
+        |> XlsxWriter.write(1, 0, "A2")
+        |> XlsxWriter.write(1, 1, "B2")
+        |> XlsxWriter.write(1, 2, "C2")
+        # Set multiple column ranges
+        |> XlsxWriter.set_column_range_width(0, 1, 100)
+        |> XlsxWriter.set_column_range_width(2, 2, 150)
+        # Set multiple row ranges
+        |> XlsxWriter.set_row_range_height(0, 0, 40)
+        |> XlsxWriter.set_row_range_height(1, 3, 25)
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+
+    test "range operations with single column/row" do
+      sheet =
+        XlsxWriter.new_sheet("Single Range")
+        |> XlsxWriter.write(0, 0, "Single Col")
+        |> XlsxWriter.write(0, 0, "Single Row")
+        # Setting a range with same start and end should work
+        |> XlsxWriter.set_column_range_width(0, 0, 100)
+        |> XlsxWriter.set_row_range_height(0, 0, 30)
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+
+    test "range operations with data and formatting" do
+      sheet =
+        XlsxWriter.new_sheet("Formatted Ranges")
+        |> XlsxWriter.write(0, 0, "Header 1", format: [:bold, {:bg_color, "#4472C4"}])
+        |> XlsxWriter.write(0, 1, "Header 2", format: [:bold, {:bg_color, "#4472C4"}])
+        |> XlsxWriter.write(0, 2, "Header 3", format: [:bold, {:bg_color, "#4472C4"}])
+        |> XlsxWriter.set_column_range_width(0, 2, 120)
+        |> XlsxWriter.set_row_range_height(0, 0, 35)
+        |> XlsxWriter.write(1, 0, "Data 1")
+        |> XlsxWriter.write(1, 1, "Data 2")
+        |> XlsxWriter.write(1, 2, "Data 3")
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+  end
+
   describe "merge_range/7" do
     test "generates valid xlsx with merged cells" do
       sheet =
         XlsxWriter.new_sheet("Merged")
-        |> XlsxWriter.merge_range(0, 0, 0, 3, "Title", format: [:bold, {:align, :center}])
+        |> XlsxWriter.merge_range(0, 0, 0, 3, "Title",
+          format: [:bold, {:align, :center}]
+        )
         |> XlsxWriter.write(1, 0, "Col 1")
         |> XlsxWriter.write(1, 1, "Col 2")
         |> XlsxWriter.merge_range(2, 0, 4, 0, 100)
@@ -229,9 +315,15 @@ defmodule XlsxWriterTest do
       sheet =
         XlsxWriter.new_sheet("Font Styles")
         # Font colors
-        |> XlsxWriter.write(0, 0, "Red Text", format: [{:font_color, "#FF0000"}])
-        |> XlsxWriter.write(0, 1, "Blue Text", format: [{:font_color, "#0000FF"}])
-        |> XlsxWriter.write(0, 2, "Green Text", format: [{:font_color, "#00FF00"}])
+        |> XlsxWriter.write(0, 0, "Red Text",
+          format: [{:font_color, "#FF0000"}]
+        )
+        |> XlsxWriter.write(0, 1, "Blue Text",
+          format: [{:font_color, "#0000FF"}]
+        )
+        |> XlsxWriter.write(0, 2, "Green Text",
+          format: [{:font_color, "#00FF00"}]
+        )
 
         # Font styles
         |> XlsxWriter.write(1, 0, "Italic", format: [:italic])
@@ -245,13 +337,23 @@ defmodule XlsxWriterTest do
 
         # Font names
         |> XlsxWriter.write(3, 0, "Arial", format: [{:font_name, "Arial"}])
-        |> XlsxWriter.write(3, 1, "Courier", format: [{:font_name, "Courier New"}])
-        |> XlsxWriter.write(3, 2, "Times", format: [{:font_name, "Times New Roman"}])
+        |> XlsxWriter.write(3, 1, "Courier",
+          format: [{:font_name, "Courier New"}]
+        )
+        |> XlsxWriter.write(3, 2, "Times",
+          format: [{:font_name, "Times New Roman"}]
+        )
 
         # Combined formatting
-        |> XlsxWriter.write(4, 0, "Bold+Red", format: [:bold, {:font_color, "#FF0000"}])
-        |> XlsxWriter.write(4, 1, "Italic+Large", format: [:italic, {:font_size, 16}])
-        |> XlsxWriter.write(4, 2, "All", format: [:bold, :italic, {:font_color, "#0000FF"}, {:font_size, 14}])
+        |> XlsxWriter.write(4, 0, "Bold+Red",
+          format: [:bold, {:font_color, "#FF0000"}]
+        )
+        |> XlsxWriter.write(4, 1, "Italic+Large",
+          format: [:italic, {:font_size, 16}]
+        )
+        |> XlsxWriter.write(4, 2, "All",
+          format: [:bold, :italic, {:font_color, "#0000FF"}, {:font_size, 14}]
+        )
 
         # Superscript and subscript
         |> XlsxWriter.write(5, 0, "E=mc²", format: [:superscript])
@@ -272,8 +374,12 @@ defmodule XlsxWriterTest do
         |> XlsxWriter.write(1, 0, "Yellow", format: [{:bg_color, "#FFFF00"}])
         |> XlsxWriter.write(1, 1, "Cyan", format: [{:bg_color, "#00FFFF"}])
         |> XlsxWriter.write(1, 2, "Magenta", format: [{:bg_color, "#FF00FF"}])
-        |> XlsxWriter.write(2, 0, "Bold + Color", format: [:bold, {:bg_color, "#FFA500"}])
-        |> XlsxWriter.write(2, 1, 100, format: [{:bg_color, "#90EE90"}, {:num_format, "$#,##0.00"}])
+        |> XlsxWriter.write(2, 0, "Bold + Color",
+          format: [:bold, {:bg_color, "#FFA500"}]
+        )
+        |> XlsxWriter.write(2, 1, 100,
+          format: [{:bg_color, "#90EE90"}, {:num_format, "$#,##0.00"}]
+        )
 
       assert {:ok, content} = XlsxWriter.generate([sheet])
       assert <<80, _>> <> _ = content
@@ -309,22 +415,25 @@ defmodule XlsxWriterTest do
         XlsxWriter.new_sheet("Colored Borders")
         # All borders with color
         |> XlsxWriter.write(0, 0, "Red Border",
-            format: [{:border, :thin}, {:border_color, "#FF0000"}])
+          format: [{:border, :thin}, {:border_color, "#FF0000"}]
+        )
         |> XlsxWriter.write(0, 1, "Blue Border",
-            format: [{:border, :medium}, {:border_color, "#0000FF"}])
+          format: [{:border, :medium}, {:border_color, "#0000FF"}]
+        )
 
         # Individual side colors
         |> XlsxWriter.write(1, 0, "Multi-colored",
-            format: [
-              {:border_top, :thin},
-              {:border_top_color, "#FF0000"},
-              {:border_bottom, :thin},
-              {:border_bottom_color, "#00FF00"},
-              {:border_left, :thin},
-              {:border_left_color, "#0000FF"},
-              {:border_right, :thin},
-              {:border_right_color, "#FFFF00"}
-            ])
+          format: [
+            {:border_top, :thin},
+            {:border_top_color, "#FF0000"},
+            {:border_bottom, :thin},
+            {:border_bottom_color, "#00FF00"},
+            {:border_left, :thin},
+            {:border_left_color, "#0000FF"},
+            {:border_right, :thin},
+            {:border_right_color, "#FFFF00"}
+          ]
+        )
 
       assert {:ok, content} = XlsxWriter.generate([sheet])
       assert <<80, _>> <> _ = content
@@ -335,15 +444,29 @@ defmodule XlsxWriterTest do
         XlsxWriter.new_sheet("Combined Formatting")
         # Borders with background colors
         |> XlsxWriter.write(0, 0, "Header 1",
-            format: [:bold, {:border, :thick}, {:bg_color, "#4472C4"}, {:align, :center}])
+          format: [
+            :bold,
+            {:border, :thick},
+            {:bg_color, "#4472C4"},
+            {:align, :center}
+          ]
+        )
         |> XlsxWriter.write(0, 1, "Header 2",
-            format: [:bold, {:border, :thick}, {:bg_color, "#4472C4"}, {:align, :center}])
+          format: [
+            :bold,
+            {:border, :thick},
+            {:bg_color, "#4472C4"},
+            {:align, :center}
+          ]
+        )
 
         # Borders with font formatting
         |> XlsxWriter.write(1, 0, "Bold Red",
-            format: [:bold, {:font_color, "#FF0000"}, {:border, :thin}])
+          format: [:bold, {:font_color, "#FF0000"}, {:border, :thin}]
+        )
         |> XlsxWriter.write(1, 1, 100,
-            format: [{:num_format, "$#,##0.00"}, {:border_bottom, :double}])
+          format: [{:num_format, "$#,##0.00"}, {:border_bottom, :double}]
+        )
 
       assert {:ok, content} = XlsxWriter.generate([sheet])
       assert <<80, _>> <> _ = content
@@ -359,12 +482,22 @@ defmodule XlsxWriterTest do
         |> XlsxWriter.write(4, 0, "Dotted", format: [{:border, :dotted}])
         |> XlsxWriter.write(5, 0, "Double", format: [{:border, :double}])
         |> XlsxWriter.write(6, 0, "Hair", format: [{:border, :hair}])
-        |> XlsxWriter.write(7, 0, "Medium Dashed", format: [{:border, :medium_dashed}])
+        |> XlsxWriter.write(7, 0, "Medium Dashed",
+          format: [{:border, :medium_dashed}]
+        )
         |> XlsxWriter.write(8, 0, "Dash Dot", format: [{:border, :dash_dot}])
-        |> XlsxWriter.write(9, 0, "Medium Dash Dot", format: [{:border, :medium_dash_dot}])
-        |> XlsxWriter.write(10, 0, "Dash Dot Dot", format: [{:border, :dash_dot_dot}])
-        |> XlsxWriter.write(11, 0, "Medium Dash Dot Dot", format: [{:border, :medium_dash_dot_dot}])
-        |> XlsxWriter.write(12, 0, "Slant Dash Dot", format: [{:border, :slant_dash_dot}])
+        |> XlsxWriter.write(9, 0, "Medium Dash Dot",
+          format: [{:border, :medium_dash_dot}]
+        )
+        |> XlsxWriter.write(10, 0, "Dash Dot Dot",
+          format: [{:border, :dash_dot_dot}]
+        )
+        |> XlsxWriter.write(11, 0, "Medium Dash Dot Dot",
+          format: [{:border, :medium_dash_dot_dot}]
+        )
+        |> XlsxWriter.write(12, 0, "Slant Dash Dot",
+          format: [{:border, :slant_dash_dot}]
+        )
 
       assert {:ok, content} = XlsxWriter.generate([sheet])
       assert <<80, _>> <> _ = content
@@ -427,7 +560,8 @@ defmodule XlsxWriterTest do
 
     test "handles invalid hex color gracefully in background color" do
       # Invalid hex should not crash, just be ignored
-      sheet = XlsxWriter.new_sheet("Test")
+      sheet =
+        XlsxWriter.new_sheet("Test")
         |> XlsxWriter.write(0, 0, "Text", format: [{:bg_color, "invalid"}])
 
       assert {:ok, content} = XlsxWriter.generate([sheet])
@@ -435,7 +569,8 @@ defmodule XlsxWriterTest do
     end
 
     test "handles invalid hex color gracefully in font color" do
-      sheet = XlsxWriter.new_sheet("Test")
+      sheet =
+        XlsxWriter.new_sheet("Test")
         |> XlsxWriter.write(0, 0, "Text", format: [{:font_color, "GGGGGG"}])
 
       assert {:ok, content} = XlsxWriter.generate([sheet])
@@ -443,15 +578,19 @@ defmodule XlsxWriterTest do
     end
 
     test "handles invalid hex color gracefully in border color" do
-      sheet = XlsxWriter.new_sheet("Test")
-        |> XlsxWriter.write(0, 0, "Text", format: [{:border, :thin}, {:border_color, "notahex"}])
+      sheet =
+        XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write(0, 0, "Text",
+          format: [{:border, :thin}, {:border_color, "notahex"}]
+        )
 
       assert {:ok, content} = XlsxWriter.generate([sheet])
       assert <<80, _>> <> _ = content
     end
 
     test "handles empty string hex color" do
-      sheet = XlsxWriter.new_sheet("Test")
+      sheet =
+        XlsxWriter.new_sheet("Test")
         |> XlsxWriter.write(0, 0, "Text", format: [{:bg_color, ""}])
 
       assert {:ok, content} = XlsxWriter.generate([sheet])
@@ -460,8 +599,9 @@ defmodule XlsxWriterTest do
 
     test "handles invalid date string gracefully" do
       # This will be caught by Rust and return an error
-      sheet = XlsxWriter.new_sheet("Test")
-      |> XlsxWriter.write(0, 0, "foo")
+      sheet =
+        XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write(0, 0, "foo")
 
       assert {:ok, _content} = XlsxWriter.generate([sheet])
     end
@@ -482,7 +622,8 @@ defmodule XlsxWriterTest do
 
     test "handles very large row index" do
       # Excel has a max of 1,048,576 rows
-      sheet = XlsxWriter.new_sheet("Test")
+      sheet =
+        XlsxWriter.new_sheet("Test")
         |> XlsxWriter.write(2_000_000, 0, "Text")
 
       result = XlsxWriter.generate([sheet])
@@ -492,7 +633,8 @@ defmodule XlsxWriterTest do
 
     test "handles very large column index" do
       # Excel has a max of 16,384 columns
-      sheet = XlsxWriter.new_sheet("Test")
+      sheet =
+        XlsxWriter.new_sheet("Test")
         |> XlsxWriter.write(0, 20_000, "Text")
 
       result = XlsxWriter.generate([sheet])
@@ -500,7 +642,8 @@ defmodule XlsxWriterTest do
     end
 
     test "handles empty sheet name" do
-      sheet = XlsxWriter.new_sheet("")
+      sheet =
+        XlsxWriter.new_sheet("")
         |> XlsxWriter.write(0, 0, "Text")
 
       result = XlsxWriter.generate([sheet])
@@ -511,7 +654,9 @@ defmodule XlsxWriterTest do
     test "handles very long sheet name" do
       # Excel sheet names max at 31 characters
       long_name = String.duplicate("a", 50)
-      sheet = XlsxWriter.new_sheet(long_name)
+
+      sheet =
+        XlsxWriter.new_sheet(long_name)
         |> XlsxWriter.write(0, 0, "Text")
 
       result = XlsxWriter.generate([sheet])
@@ -520,7 +665,8 @@ defmodule XlsxWriterTest do
 
     test "handles invalid characters in sheet name" do
       # Excel doesn't allow: \ / ? * [ ]
-      sheet = XlsxWriter.new_sheet("Invalid[Sheet]")
+      sheet =
+        XlsxWriter.new_sheet("Invalid[Sheet]")
         |> XlsxWriter.write(0, 0, "Text")
 
       result = XlsxWriter.generate([sheet])
@@ -528,7 +674,8 @@ defmodule XlsxWriterTest do
     end
 
     test "handles invalid formula syntax" do
-      sheet = XlsxWriter.new_sheet("Test")
+      sheet =
+        XlsxWriter.new_sheet("Test")
         |> XlsxWriter.write_formula(0, 0, "=INVALID(((")
 
       # Formula syntax errors are caught at Excel runtime, not generation
@@ -537,7 +684,8 @@ defmodule XlsxWriterTest do
     end
 
     test "handles empty formula" do
-      sheet = XlsxWriter.new_sheet("Test")
+      sheet =
+        XlsxWriter.new_sheet("Test")
         |> XlsxWriter.write_formula(0, 0, "")
 
       assert {:ok, content} = XlsxWriter.generate([sheet])
@@ -545,24 +693,28 @@ defmodule XlsxWriterTest do
     end
 
     test "handles invalid URL" do
-      # Invalid URLs should still write
-      sheet = XlsxWriter.new_sheet("Test")
+      # Invalid URLs should return an error
+      sheet =
+        XlsxWriter.new_sheet("Test")
         |> XlsxWriter.write_url(0, 0, "not a url")
 
-      assert {:ok, content} = XlsxWriter.generate([sheet])
-      assert <<80, _>> <> _ = content
+      assert {:error, reason} = XlsxWriter.generate([sheet])
+      assert reason =~ "url type"
     end
 
     test "handles empty URL" do
-      sheet = XlsxWriter.new_sheet("Test")
+      # Empty URLs should return an error
+      sheet =
+        XlsxWriter.new_sheet("Test")
         |> XlsxWriter.write_url(0, 0, "")
 
-      assert {:ok, content} = XlsxWriter.generate([sheet])
-      assert <<80, _>> <> _ = content
+      assert {:error, reason} = XlsxWriter.generate([sheet])
+      assert reason =~ "url type"
     end
 
     test "handles zero column width" do
-      sheet = XlsxWriter.new_sheet("Test")
+      sheet =
+        XlsxWriter.new_sheet("Test")
         |> XlsxWriter.write(0, 0, "Text")
         |> XlsxWriter.set_column_width(0, 0)
 
@@ -571,7 +723,8 @@ defmodule XlsxWriterTest do
     end
 
     test "handles zero row height" do
-      sheet = XlsxWriter.new_sheet("Test")
+      sheet =
+        XlsxWriter.new_sheet("Test")
         |> XlsxWriter.write(0, 0, "Text")
         |> XlsxWriter.set_row_height(0, 0)
 
@@ -580,7 +733,8 @@ defmodule XlsxWriterTest do
     end
 
     test "handles invalid merge range (last < first)" do
-      sheet = XlsxWriter.new_sheet("Test")
+      sheet =
+        XlsxWriter.new_sheet("Test")
         |> XlsxWriter.merge_range(5, 5, 0, 0, "Text")
 
       result = XlsxWriter.generate([sheet])
@@ -589,16 +743,18 @@ defmodule XlsxWriterTest do
     end
 
     test "handles merge range with same start and end" do
-      sheet = XlsxWriter.new_sheet("Test")
+      # Merging a single cell should return an error
+      sheet =
+        XlsxWriter.new_sheet("Test")
         |> XlsxWriter.merge_range(0, 0, 0, 0, "Text")
 
-      # Merging a single cell should work (just write it)
-      assert {:ok, content} = XlsxWriter.generate([sheet])
-      assert <<80, _>> <> _ = content
+      assert {:error, reason} = XlsxWriter.generate([sheet])
+      assert reason =~ "single cell"
     end
 
     test "handles autofilter with invalid range (last < first)" do
-      sheet = XlsxWriter.new_sheet("Test")
+      sheet =
+        XlsxWriter.new_sheet("Test")
         |> XlsxWriter.set_autofilter(5, 5, 0, 0)
 
       result = XlsxWriter.generate([sheet])
@@ -606,7 +762,8 @@ defmodule XlsxWriterTest do
     end
 
     test "handles zero font size" do
-      sheet = XlsxWriter.new_sheet("Test")
+      sheet =
+        XlsxWriter.new_sheet("Test")
         |> XlsxWriter.write(0, 0, "Text", format: [{:font_size, 0}])
 
       assert {:ok, content} = XlsxWriter.generate([sheet])
@@ -614,7 +771,8 @@ defmodule XlsxWriterTest do
     end
 
     test "handles extremely large font size" do
-      sheet = XlsxWriter.new_sheet("Test")
+      sheet =
+        XlsxWriter.new_sheet("Test")
         |> XlsxWriter.write(0, 0, "Text", format: [{:font_size, 1000}])
 
       assert {:ok, content} = XlsxWriter.generate([sheet])
@@ -622,7 +780,8 @@ defmodule XlsxWriterTest do
     end
 
     test "handles empty font name" do
-      sheet = XlsxWriter.new_sheet("Test")
+      sheet =
+        XlsxWriter.new_sheet("Test")
         |> XlsxWriter.write(0, 0, "Text", format: [{:font_name, ""}])
 
       assert {:ok, content} = XlsxWriter.generate([sheet])
@@ -631,7 +790,8 @@ defmodule XlsxWriterTest do
 
     test "handles invalid image data" do
       # Invalid binary should be caught by Rust
-      sheet = XlsxWriter.new_sheet("Test")
+      sheet =
+        XlsxWriter.new_sheet("Test")
         |> XlsxWriter.write_image(0, 0, "not image data")
 
       result = XlsxWriter.generate([sheet])
@@ -682,7 +842,9 @@ defmodule XlsxWriterTest do
       sheet =
         XlsxWriter.new_sheet("Phase 1 Features")
         # Merged header
-        |> XlsxWriter.merge_range(0, 0, 0, 4, "Sales Report", format: [:bold, {:align, :center}])
+        |> XlsxWriter.merge_range(0, 0, 0, 4, "Sales Report",
+          format: [:bold, {:align, :center}]
+        )
         # Column headers with autofilter
         |> XlsxWriter.write(1, 0, "Product", format: [:bold])
         |> XlsxWriter.write(1, 1, "Q1", format: [:bold])

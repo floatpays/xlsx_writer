@@ -22,6 +22,10 @@
   - Individual borders via `{:border_top, style}`, `{:border_bottom, style}`, `{:border_left, style}`, `{:border_right, style}` - control each side independently
   - Border colors via `{:border_color, hex_color}` and side-specific colors - customize border colors per side
   - 13 border styles: `:thin`, `:medium`, `:thick`, `:dashed`, `:dotted`, `:double`, `:hair`, `:medium_dashed`, `:dash_dot`, `:medium_dash_dot`, `:dash_dot_dot`, `:medium_dash_dot_dot`, `:slant_dash_dot`
+- Add column and row range operations for efficient bulk sizing:
+  - `set_column_range_width/4` - set width for multiple consecutive columns at once
+  - `set_row_range_height/4` - set height for multiple consecutive rows at once
+  - Simplifies setting uniform sizes across ranges (e.g., set columns A-E to 120 pixels)
 
 # v0.6.0
 

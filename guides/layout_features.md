@@ -141,6 +141,38 @@ sheet = XlsxWriter.new_sheet("Sized")
 File.write!("custom_sizes.xlsx", content)
 ```
 
+### Bulk Sizing with Range Operations
+
+Set width or height for multiple columns or rows at once:
+
+```elixir
+sheet = XlsxWriter.new_sheet("Range Sizing")
+  # Set columns A-E (0-4) to 120 pixels wide
+  |> XlsxWriter.set_column_range_width(0, 4, 120)
+
+  # Set rows 1-10 to 25 pixels tall
+  |> XlsxWriter.set_row_range_height(0, 9, 25)
+
+  # You can combine with individual sizing
+  |> XlsxWriter.set_column_width(5, 200)  # Make column F extra wide
+
+  # Add headers to all columns
+  |> XlsxWriter.write(0, 0, "Col A", format: [:bold])
+  |> XlsxWriter.write(0, 1, "Col B", format: [:bold])
+  |> XlsxWriter.write(0, 2, "Col C", format: [:bold])
+  |> XlsxWriter.write(0, 3, "Col D", format: [:bold])
+  |> XlsxWriter.write(0, 4, "Col E", format: [:bold])
+  |> XlsxWriter.write(0, 5, "Wide Column", format: [:bold])
+
+{:ok, content} = XlsxWriter.generate([sheet])
+File.write!("range_sizing.xlsx", content)
+```
+
+**Benefits of range operations:**
+- More efficient than setting each column/row individually
+- Cleaner, more readable code for uniform sizing
+- Useful for tables with many consistent-width columns
+
 ## Images
 
 Embed images directly into spreadsheets:

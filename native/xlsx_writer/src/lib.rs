@@ -94,6 +94,8 @@ enum Sheet<'a> {
     Write(u32, u16, CellData<'a>),
     SetColumnWidth(u16, u32),
     SetRowHeight(u32, u16),
+    SetColumnRangeWidth(u16, u16, u32),
+    SetRowRangeHeight(u32, u32, u16),
     SetFreezePanes(u32, u16),
     SetRowHidden(u32),
     SetColumnHidden(u16),
@@ -106,7 +108,7 @@ fn write(sheets: Vec<(String, Vec<Sheet>)>) -> Result<Vec<u8>, String> {
     let mut workbook = Workbook::new();
 
     for (sheet_name, sheet) in sheets {
-        let worksheet = workbook.add_worksheet();
+        let mut worksheet = workbook.add_worksheet();
 
         match worksheet.set_name(sheet_name) {
             Err(e) => return Err(e.to_string()),
@@ -114,19 +116,65 @@ fn write(sheets: Vec<(String, Vec<Sheet>)>) -> Result<Vec<u8>, String> {
         }
 
         for instruction in sheet {
-            let _result = match instruction {
-                Sheet::SetColumnWidth(col, val) => worksheet.set_column_width(col, val),
-                Sheet::SetRowHeight(row, val) => worksheet.set_row_height(row, val),
-                Sheet::SetFreezePanes(row, col) => worksheet.set_freeze_panes(row, col),
-                Sheet::SetRowHidden(row) => worksheet.set_row_hidden(row),
-                Sheet::SetColumnHidden(col) => worksheet.set_column_hidden(col),
+            worksheet = match instruction {
+                Sheet::SetColumnWidth(col, val) => match worksheet.set_column_width(col, val) {
+                    Ok(ws) => ws,
+                    Err(e) => return Err(e.to_string()),
+                },
+                Sheet::SetRowHeight(row, val) => match worksheet.set_row_height(row, val) {
+                    Ok(ws) => ws,
+                    Err(e) => return Err(e.to_string()),
+                },
+                Sheet::SetColumnRangeWidth(first_col, last_col, width) => {
+                    // Set width for each column in the range
+                    let mut ws = worksheet;
+                    for col in first_col..=last_col {
+                        ws = match ws.set_column_width_pixels(col, width) {
+                            Ok(w) => w,
+                            Err(e) => return Err(e.to_string()),
+                        };
+                    }
+                    ws
+                }
+                Sheet::SetRowRangeHeight(first_row, last_row, height) => {
+                    // Set height for each row in the range
+                    let mut ws = worksheet;
+                    for row in first_row..=last_row {
+                        ws = match ws.set_row_height_pixels(row, height as u32) {
+                            Ok(w) => w,
+                            Err(e) => return Err(e.to_string()),
+                        };
+                    }
+                    ws
+                }
+                Sheet::SetFreezePanes(row, col) => match worksheet.set_freeze_panes(row, col) {
+                    Ok(ws) => ws,
+                    Err(e) => return Err(e.to_string()),
+                },
+                Sheet::SetRowHidden(row) => match worksheet.set_row_hidden(row) {
+                    Ok(ws) => ws,
+                    Err(e) => return Err(e.to_string()),
+                },
+                Sheet::SetColumnHidden(col) => match worksheet.set_column_hidden(col) {
+                    Ok(ws) => ws,
+                    Err(e) => return Err(e.to_string()),
+                },
                 Sheet::SetAutofilter(first_row, first_col, last_row, last_col) => {
-                    worksheet.autofilter(first_row, first_col, last_row, last_col)
+                    match worksheet.autofilter(first_row, first_col, last_row, last_col) {
+                        Ok(ws) => ws,
+                        Err(e) => return Err(e.to_string()),
+                    }
                 }
                 Sheet::MergeRange(first_row, first_col, last_row, last_col, data) => {
-                    merge_range(worksheet, first_row, first_col, last_row, last_col, data)
+                    match merge_range(worksheet, first_row, first_col, last_row, last_col, data) {
+                        Ok(ws) => ws,
+                        Err(e) => return Err(e.to_string()),
+                    }
                 }
-                Sheet::Write(row, col, data) => write_data(worksheet, row, col, data),
+                Sheet::Write(row, col, data) => match write_data(worksheet, row, col, data) {
+                    Ok(ws) => ws,
+                    Err(e) => return Err(e.to_string()),
+                },
             };
         }
     }
