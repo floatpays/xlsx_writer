@@ -40,6 +40,7 @@ defmodule XlsxWriter do
   - `write_boolean/5` - Write boolean value
   - `write_url/5` - Write clickable URL
   - `write_image/4` - Embed image
+  - `write_comment/5` - Add comment/note to cell
   - `write_blank/4` - Write formatted blank cell
 
   ### Layout & Structure
@@ -405,6 +406,68 @@ defmodule XlsxWriter do
     Validation.validate_image_binary!(image_binary)
 
     {name, [{:write, row, col, {:image, image_binary}} | instructions]}
+  end
+
+  @doc """
+  Writes a comment/note to a specific cell in the sheet.
+
+  Comments appear when hovering over a cell and are useful for documentation,
+  instructions, or additional context about cell values.
+
+  ## Parameters
+
+  - `sheet` - The sheet tuple `{name, instructions}`
+  - `row` - The row index (0-based)
+  - `col` - The column index (0-based)
+  - `text` - The comment text content
+  - `opts` - Optional keyword list:
+    - `:author` - Author name (string, max 52 characters)
+    - `:visible` - Whether to show the comment by default (boolean, default: false)
+    - `:width` - Comment box width in pixels (integer, default: 128)
+    - `:height` - Comment box height in pixels (integer, default: 74)
+
+  ## Returns
+
+  Updated sheet tuple with the new comment instruction.
+
+  ## Examples
+
+      # Simple comment
+      iex> sheet = XlsxWriter.new_sheet("Test")
+      iex> sheet = XlsxWriter.write_comment(sheet, 0, 0, "This is a note")
+      iex> {"Test", [{:insert_note, 0, 0, "This is a note", _}]} = sheet
+
+      # Comment with author
+      iex> sheet = XlsxWriter.new_sheet("Test")
+      iex> sheet = XlsxWriter.write_comment(sheet, 0, 0, "Review this", author: "John Doe")
+      iex> {"Test", [{:insert_note, 0, 0, "Review this", %XlsxWriter.NoteOptions{author: "John Doe"}}]} = sheet
+
+      # Visible comment with custom size
+      iex> sheet = XlsxWriter.new_sheet("Test")
+      iex> sheet = XlsxWriter.write_comment(sheet, 0, 0, "Important!",
+      ...>   visible: true, width: 300, height: 200)
+      iex> {"Test", [{:insert_note, 0, 0, "Important!", options}]} = sheet
+      iex> options.visible
+      true
+      iex> options.width
+      300
+
+  """
+  def write_comment({name, instructions}, row, col, text, opts \\ []) do
+    Validation.validate_cell_position!(row, col)
+
+    unless is_binary(text) do
+      raise ArgumentError, "Comment text must be a string, got: #{inspect(text)}"
+    end
+
+    note_options = %XlsxWriter.NoteOptions{
+      author: Keyword.get(opts, :author),
+      visible: Keyword.get(opts, :visible),
+      width: Keyword.get(opts, :width),
+      height: Keyword.get(opts, :height)
+    }
+
+    {name, [{:insert_note, row, col, text, note_options} | instructions]}
   end
 
   @doc """

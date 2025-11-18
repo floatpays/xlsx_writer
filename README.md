@@ -19,6 +19,7 @@ A high-performance Elixir library for creating Excel (.xlsx) spreadsheets. Built
 - 🔍 **Autofilter**: Add dropdown filters to headers
 - ❄️ **Freeze panes**: Lock headers when scrolling
 - 📄 **Multiple sheets**: Create workbooks with multiple worksheets
+- 💬 **Comments**: Add notes to cells for documentation and context
 - 🔧 **Simple API**: Clean, pipe-friendly Elixir interface
 
 ## Quick Start
@@ -69,7 +70,7 @@ Want to see all features in action? Run the comprehensive demo script that showc
 mix run examples/comprehensive_demo.exs
 ```
 
-This generates `comprehensive_demo.xlsx` with 8 sheets demonstrating:
+This generates `comprehensive_demo.xlsx` with 9 sheets demonstrating:
 - All data types (strings, numbers, dates, booleans, formulas, URLs)
 - Font formatting (colors, sizes, styles, families, super/subscript)
 - Cell borders (all 13 styles, colored, per-side)
@@ -77,6 +78,7 @@ This generates `comprehensive_demo.xlsx` with 8 sheets demonstrating:
 - Text alignment and number formats
 - Layout features (freeze panes, autofilter, hidden rows/columns, range operations)
 - Merged cells
+- Cell comments/notes
 - A complete invoice example
 
 Perfect for learning the library or as a reference!

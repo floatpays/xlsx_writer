@@ -253,6 +253,42 @@ invoice_sheet =
   |> XlsxWriter.set_row_height(0, 40)
 
 # Generate the workbook
+# Sheet 9: Comments/Notes
+comments_sheet =
+  XlsxWriter.new_sheet("Comments")
+  |> XlsxWriter.write(0, 0, "Cell Comments Demo", format: [:bold, {:font_size, 14}])
+  |> XlsxWriter.write_comment(0, 0, "Comments provide additional context and documentation")
+  |> XlsxWriter.write(2, 0, "Feature", format: [:bold])
+  |> XlsxWriter.write(2, 1, "Example", format: [:bold])
+  # Simple comment
+  |> XlsxWriter.write(3, 0, "Simple comment")
+  |> XlsxWriter.write(3, 1, "Hover to see note")
+  |> XlsxWriter.write_comment(3, 1, "This is a basic comment that appears on hover")
+  # Comment with author
+  |> XlsxWriter.write(4, 0, "With author")
+  |> XlsxWriter.write(4, 1, "Review this")
+  |> XlsxWriter.write_comment(4, 1, "Please review by end of week", author: "Manager")
+  # Visible comment
+  |> XlsxWriter.write(5, 0, "Always visible")
+  |> XlsxWriter.write(5, 1, "Important!")
+  |> XlsxWriter.write_comment(5, 1, "This comment is always shown (not just on hover)",
+    visible: true,
+    width: 250,
+    height: 100
+  )
+  # Multi-line comment
+  |> XlsxWriter.write(6, 0, "Multi-line")
+  |> XlsxWriter.write(6, 1, "Instructions")
+  |> XlsxWriter.write_comment(6, 1,
+    "Line 1: First instruction\nLine 2: Second instruction\nLine 3: Third instruction"
+  )
+  # Comment with formatting
+  |> XlsxWriter.write(7, 0, "With formatting")
+  |> XlsxWriter.write(7, 1, 42, format: [:bold, {:bg_color, "#FFFF00"}])
+  |> XlsxWriter.write_comment(7, 1, "Comments work with any cell formatting", author: "Developer")
+  |> XlsxWriter.set_column_width(0, 20)
+  |> XlsxWriter.set_column_width(1, 25)
+
 {:ok, content} = XlsxWriter.generate([
   data_types_sheet,
   font_sheet,
@@ -261,7 +297,8 @@ invoice_sheet =
   formatting_sheet,
   layout_sheet,
   merged_sheet,
-  invoice_sheet
+  invoice_sheet,
+  comments_sheet
 ])
 
 # Write to file in examples folder
@@ -279,4 +316,5 @@ IO.puts("  • Text alignment and number formats")
 IO.puts("  • Layout features (freeze panes, autofilter, hidden rows/columns)")
 IO.puts("  • Range operations for bulk sizing")
 IO.puts("  • Merged cells")
+IO.puts("  • Cell comments/notes")
 IO.puts("  • A complete invoice example")

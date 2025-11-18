@@ -1,4 +1,4 @@
-use rust_xlsxwriter::{Color, ExcelDateTime, Format, FormatAlign, FormatBorder, FormatPattern, FormatScript, FormatUnderline, Image, Workbook, Worksheet, XlsxError, Formula, Url};
+use rust_xlsxwriter::{Color, ExcelDateTime, Format, FormatAlign, FormatBorder, FormatPattern, FormatScript, FormatUnderline, Image, Note, Workbook, Worksheet, XlsxError, Formula, Url};
 use rustler::{Binary, NifTaggedEnum};
 
 #[derive(NifTaggedEnum, PartialEq)]
@@ -69,6 +69,15 @@ enum CellFormat {
     BorderRightColor(String),
 }
 
+#[derive(rustler::NifStruct)]
+#[module = "XlsxWriter.NoteOptions"]
+struct NoteOptions {
+    author: Option<String>,
+    visible: Option<bool>,
+    width: Option<u32>,
+    height: Option<u32>,
+}
+
 #[derive(NifTaggedEnum)]
 enum CellData<'a> {
     Float(f64),
@@ -101,6 +110,7 @@ enum Sheet<'a> {
     SetColumnHidden(u16),
     SetAutofilter(u32, u16, u32, u16),
     MergeRange(u32, u16, u32, u16, CellData<'a>),
+    InsertNote(u32, u16, String, NoteOptions),
 }
 
 #[rustler::nif]
@@ -171,6 +181,12 @@ fn write(sheets: Vec<(String, Vec<Sheet>)>) -> Result<Vec<u8>, String> {
                         Err(e) => return Err(e.to_string()),
                     }
                 }
+                Sheet::InsertNote(row, col, text, options) => {
+                    match insert_note(worksheet, row, col, text, options) {
+                        Ok(ws) => ws,
+                        Err(e) => return Err(e.to_string()),
+                    }
+                }
                 Sheet::Write(row, col, data) => match write_data(worksheet, row, col, data) {
                     Ok(ws) => ws,
                     Err(e) => return Err(e.to_string()),
@@ -183,6 +199,34 @@ fn write(sheets: Vec<(String, Vec<Sheet>)>) -> Result<Vec<u8>, String> {
         Ok(buf) => Ok(buf),
         Err(e) => Err(e.to_string()),
     };
+}
+
+fn insert_note<'a>(
+    worksheet: &'a mut Worksheet,
+    row: u32,
+    col: u16,
+    text: String,
+    options: NoteOptions,
+) -> Result<&'a mut Worksheet, XlsxError> {
+    let mut note = Note::new(&text);
+
+    if let Some(author) = options.author {
+        note = note.set_author(&author);
+    }
+
+    if let Some(visible) = options.visible {
+        note = note.set_visible(visible);
+    }
+
+    if let Some(width) = options.width {
+        note = note.set_width(width);
+    }
+
+    if let Some(height) = options.height {
+        note = note.set_height(height);
+    }
+
+    worksheet.insert_note(row, col, &note)
 }
 
 fn merge_range<'a, 'b>(
