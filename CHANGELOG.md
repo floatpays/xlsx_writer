@@ -10,6 +10,13 @@
 - Add autofilter support via `set_autofilter/5` - add dropdown filter buttons to column headers
 - Add merged cells support via `merge_range/7` - combine multiple cells into a single cell
 - Add cell background colors via `{:bg_color, hex_color}` format option - set cell background colors with hex codes
+- Add comprehensive font styling:
+  - Font colors via `{:font_color, hex_color}` - set text color with hex codes
+  - Font styles via `:italic`, `:strikethrough` - apply text decoration
+  - Font sizes via `{:font_size, size}` - set font size in points
+  - Font families via `{:font_name, name}` - use custom fonts (Arial, Courier, etc.)
+  - Text position via `:superscript`, `:subscript` - create scientific notation and chemical formulas
+  - Underline styles via `{:underline, style}` - single, double, accounting underlines
 
 # v0.6.0
 

@@ -1,4 +1,4 @@
-use rust_xlsxwriter::{Color, ExcelDateTime, Format, FormatAlign, FormatPattern, Image, Workbook, Worksheet, XlsxError, Formula, Url};
+use rust_xlsxwriter::{Color, ExcelDateTime, Format, FormatAlign, FormatPattern, FormatScript, FormatUnderline, Image, Workbook, Worksheet, XlsxError, Formula, Url};
 use rustler::{Binary, NifTaggedEnum};
 
 #[derive(NifTaggedEnum, PartialEq)]
@@ -17,6 +17,14 @@ enum CellPattern {
 }
 
 #[derive(NifTaggedEnum, PartialEq)]
+enum UnderlineStyle {
+    Single,
+    Double,
+    SingleAccounting,
+    DoubleAccounting,
+}
+
+#[derive(NifTaggedEnum, PartialEq)]
 enum CellFormat {
     Bold,
     Align(CellAlignPos),
@@ -24,6 +32,14 @@ enum CellFormat {
     NumFormat(String),
     BgColor(String),
     Pattern(CellPattern),
+    FontColor(String),
+    Italic,
+    Underline(UnderlineStyle),
+    Strikethrough,
+    FontSize(u16),
+    FontName(String),
+    Superscript,
+    Subscript,
 }
 
 #[derive(NifTaggedEnum)]
@@ -242,6 +258,28 @@ fn apply_formats(mut format: Format, formats: &[CellFormat]) -> Format {
                 CellPattern::Gray125 => format.set_pattern(FormatPattern::Gray125),
                 CellPattern::Gray0625 => format.set_pattern(FormatPattern::Gray0625),
             },
+            CellFormat::FontColor(color_hex) => {
+                // Parse hex color string for font color
+                let hex_str = color_hex.trim_start_matches('#');
+                if let Ok(rgb) = u32::from_str_radix(hex_str, 16) {
+                    let color = Color::from(rgb);
+                    format.set_font_color(color)
+                } else {
+                    format
+                }
+            }
+            CellFormat::Italic => format.set_italic(),
+            CellFormat::Underline(style) => match style {
+                UnderlineStyle::Single => format.set_underline(FormatUnderline::Single),
+                UnderlineStyle::Double => format.set_underline(FormatUnderline::Double),
+                UnderlineStyle::SingleAccounting => format.set_underline(FormatUnderline::SingleAccounting),
+                UnderlineStyle::DoubleAccounting => format.set_underline(FormatUnderline::DoubleAccounting),
+            },
+            CellFormat::Strikethrough => format.set_font_strikethrough(),
+            CellFormat::FontSize(size) => format.set_font_size(*size),
+            CellFormat::FontName(name) => format.set_font_name(name),
+            CellFormat::Superscript => format.set_font_script(FormatScript::Superscript),
+            CellFormat::Subscript => format.set_font_script(FormatScript::Subscript),
         };
     }
     return format;

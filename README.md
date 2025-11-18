@@ -116,6 +116,47 @@ sheet =
 File.write!("data_types.xlsx", content)
 ```
 
+### Font Styling
+
+Apply comprehensive font styling with colors, sizes, styles, and text positioning:
+
+```elixir
+sheet =
+  XlsxWriter.new_sheet("Typography")
+  # Font colors
+  |> XlsxWriter.write(0, 0, "Red Text", format: [{:font_color, "#FF0000"}])
+  |> XlsxWriter.write(0, 1, "Blue Text", format: [{:font_color, "#0000FF"}])
+  |> XlsxWriter.write(0, 2, "Green Text", format: [{:font_color, "#00FF00"}])
+
+  # Font styles
+  |> XlsxWriter.write(1, 0, "Italic", format: [:italic])
+  |> XlsxWriter.write(1, 1, "Strikethrough", format: [:strikethrough])
+  |> XlsxWriter.write(1, 2, "Underlined", format: [{:underline, :single}])
+
+  # Font sizes
+  |> XlsxWriter.write(2, 0, "Small", format: [{:font_size, 10}])
+  |> XlsxWriter.write(2, 1, "Medium", format: [{:font_size, 14}])
+  |> XlsxWriter.write(2, 2, "Large", format: [{:font_size, 18}])
+
+  # Font families
+  |> XlsxWriter.write(3, 0, "Arial", format: [{:font_name, "Arial"}])
+  |> XlsxWriter.write(3, 1, "Courier", format: [{:font_name, "Courier New"}])
+  |> XlsxWriter.write(3, 2, "Times", format: [{:font_name, "Times New Roman"}])
+
+  # Combined formatting
+  |> XlsxWriter.write(4, 0, "Bold Red Large",
+      format: [:bold, {:font_color, "#FF0000"}, {:font_size, 16}])
+
+  # Scientific notation and chemical formulas
+  |> XlsxWriter.write(5, 0, "E=mc²", format: [:superscript])
+  |> XlsxWriter.write(5, 1, "H₂O", format: [:subscript])
+
+{:ok, content} = XlsxWriter.generate([sheet])
+File.write!("typography.xlsx", content)
+```
+
+Available underline styles: `:single`, `:double`, `:single_accounting`, `:double_accounting`
+
 ### Cell Background Colors
 
 Add visual emphasis with cell background colors:
@@ -335,7 +376,16 @@ XlsxWriter supports extensive cell formatting through the `format:` parameter. C
 
 | Format Type | Option | Example |
 |-------------|--------|---------|
-| **Font** | `:bold` | `format: [:bold]` |
+| **Font Weight** | `:bold` | `format: [:bold]` |
+| **Font Style** | `:italic` | `format: [:italic]` |
+| | `:strikethrough` | `format: [:strikethrough]` |
+| **Font Color** | `{:font_color, hex}` | `format: [{:font_color, "#FF0000"}]` |
+| **Font Size** | `{:font_size, points}` | `format: [{:font_size, 14}]` |
+| **Font Family** | `{:font_name, name}` | `format: [{:font_name, "Arial"}]` |
+| **Underline** | `{:underline, style}` | `format: [{:underline, :single}]` |
+| **Text Position** | `:superscript` | `format: [:superscript]` |
+| | `:subscript` | `format: [:subscript]` |
+| **Background** | `{:bg_color, hex}` | `format: [{:bg_color, "#FFFF00"}]` |
 | **Alignment** | `{:align, :left}` | `format: [{:align, :left}]` |
 | | `{:align, :center}` | `format: [{:align, :center}]` |
 | | `{:align, :right}` | `format: [{:align, :right}]` |
@@ -352,7 +402,7 @@ XlsxWriter supports extensive cell formatting through the `format:` parameter. C
 | `"mm/dd/yyyy"` | Date format | `12/25/2023` |
 | `"h:mm AM/PM"` | Time format | `2:30 PM` |
 
-> **Note**: XlsxWriter currently implements a subset of the formatting options available in the underlying `rust_xlsxwriter` library. Additional formatting features like colors, borders, and advanced font properties may be added in future releases.
+> **Note**: XlsxWriter implements comprehensive formatting including fonts, colors, alignment, and number formats. Additional formatting features like borders and cell patterns may be added in future releases.
 
 ## Installation
 

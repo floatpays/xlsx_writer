@@ -230,6 +230,44 @@ defmodule XlsxWriterTest do
     end
   end
 
+  describe "font colors and styles" do
+    test "generates valid xlsx with font colors and styles" do
+      sheet =
+        XlsxWriter.new_sheet("Font Styles")
+        # Font colors
+        |> XlsxWriter.write(0, 0, "Red Text", format: [{:font_color, "#FF0000"}])
+        |> XlsxWriter.write(0, 1, "Blue Text", format: [{:font_color, "#0000FF"}])
+        |> XlsxWriter.write(0, 2, "Green Text", format: [{:font_color, "#00FF00"}])
+
+        # Font styles
+        |> XlsxWriter.write(1, 0, "Italic", format: [:italic])
+        |> XlsxWriter.write(1, 1, "Strikethrough", format: [:strikethrough])
+        |> XlsxWriter.write(1, 2, "Underline", format: [{:underline, :single}])
+
+        # Font sizes
+        |> XlsxWriter.write(2, 0, "Size 10", format: [{:font_size, 10}])
+        |> XlsxWriter.write(2, 1, "Size 14", format: [{:font_size, 14}])
+        |> XlsxWriter.write(2, 2, "Size 18", format: [{:font_size, 18}])
+
+        # Font names
+        |> XlsxWriter.write(3, 0, "Arial", format: [{:font_name, "Arial"}])
+        |> XlsxWriter.write(3, 1, "Courier", format: [{:font_name, "Courier New"}])
+        |> XlsxWriter.write(3, 2, "Times", format: [{:font_name, "Times New Roman"}])
+
+        # Combined formatting
+        |> XlsxWriter.write(4, 0, "Bold+Red", format: [:bold, {:font_color, "#FF0000"}])
+        |> XlsxWriter.write(4, 1, "Italic+Large", format: [:italic, {:font_size, 16}])
+        |> XlsxWriter.write(4, 2, "All", format: [:bold, :italic, {:font_color, "#0000FF"}, {:font_size, 14}])
+
+        # Superscript and subscript
+        |> XlsxWriter.write(5, 0, "E=mc²", format: [:superscript])
+        |> XlsxWriter.write(5, 1, "H₂O", format: [:subscript])
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+  end
+
   describe "background colors" do
     test "generates valid xlsx with background colors" do
       sheet =

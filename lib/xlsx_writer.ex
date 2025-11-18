@@ -173,9 +173,17 @@ defmodule XlsxWriter do
 
   - `:format` - A list of format specifications:
     - `:bold` - Make text bold
+    - `:italic` - Make text italic
+    - `:strikethrough` - Strike through text
+    - `:superscript` - Superscript text
+    - `:subscript` - Subscript text
     - `{:align, :left | :center | :right}` - Text alignment
     - `{:num_format, format_string}` - Custom number format
     - `{:bg_color, hex_color}` - Background color (e.g., "#FFFF00" for yellow)
+    - `{:font_color, hex_color}` - Font color (e.g., "#FF0000" for red)
+    - `{:font_size, size}` - Font size in points (e.g., 12, 14, 16)
+    - `{:font_name, name}` - Font family (e.g., "Arial", "Times New Roman")
+    - `{:underline, :single | :double | :single_accounting | :double_accounting}` - Underline style
     - `{:pattern, :solid | :none | :gray125 | :gray0625}` - Fill pattern
 
   ## Returns
@@ -195,6 +203,10 @@ defmodule XlsxWriter do
       iex> sheet = XlsxWriter.new_sheet("Test")
       iex> sheet = XlsxWriter.write(sheet, 0, 0, "Yellow", format: [{:bg_color, "#FFFF00"}])
       iex> {"Test", [{:write, 0, 0, {:string_with_format, "Yellow", [{:bg_color, "#FFFF00"}]}}]} = sheet
+
+      iex> sheet = XlsxWriter.new_sheet("Test")
+      iex> sheet = XlsxWriter.write(sheet, 0, 0, "Red Italic", format: [:italic, {:font_color, "#FF0000"}])
+      iex> {"Test", [{:write, 0, 0, {:string_with_format, "Red Italic", [:italic, {:font_color, "#FF0000"}]}}]} = sheet
 
   """
   def write({name, instructions}, row, col, val, opts \\ []) do
