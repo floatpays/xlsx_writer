@@ -12,7 +12,8 @@ defmodule XlsxWriter.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       description: description(),
-      package: package()
+      package: package(),
+      docs: docs()
     ]
   end
 
@@ -58,5 +59,20 @@ defmodule XlsxWriter.MixProject do
 
   defp description do
     "A fast Elixir library for writing Excel (.xlsx) files using Rust. Built with the rust_xlsxwriter crate via Rustler NIF for high performance spreadsheet generation."
+  end
+
+  defp docs do
+    [
+      main: "XlsxWriter",
+      extras: [
+        "guides/getting_started.md",
+        "guides/builder_api.md",
+        "guides/formatting.md",
+        "guides/layout_features.md"
+      ],
+      groups_for_extras: [
+        "Guides": ~r/guides\/.*/
+      ]
+    ]
   end
 end

@@ -74,7 +74,7 @@ defmodule XlsxWriter.Validation do
   - `formats` - List of format tuples
 
   ## Raises
-  - `XlsxWriter.Error` if any color option has a non-string value
+  - `ArgumentError` if any color option has a non-string value
 
   ## Examples
 
@@ -122,7 +122,7 @@ defmodule XlsxWriter.Validation do
   - `value` - The value to validate
 
   ## Raises
-  - `XlsxWriter.Error` if the data type is not supported
+  - `ArgumentError` if the data type is not supported
 
   ## Examples
 
