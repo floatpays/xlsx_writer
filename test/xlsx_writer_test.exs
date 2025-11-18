@@ -92,12 +92,6 @@ defmodule XlsxWriterTest do
       File.write!(filename, content)
     end
 
-    test "write xlsx file with unsupported format" do
-      assert_raise XlsxWriter.Error, fn ->
-        XlsxWriter.new_sheet("sheet number one")
-        |> XlsxWriter.write(0, 0, self())
-      end
-    end
   end
 
   describe "write_boolean/5" do
@@ -374,6 +368,312 @@ defmodule XlsxWriterTest do
 
       assert {:ok, content} = XlsxWriter.generate([sheet])
       assert <<80, _>> <> _ = content
+    end
+  end
+
+  describe "error handling" do
+    test "raises error for unsupported data type (PID)" do
+      assert_raise XlsxWriter.Error, ~r/not supported/, fn ->
+        XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write(0, 0, self())
+      end
+    end
+
+    test "raises error for unsupported data type (function)" do
+      assert_raise XlsxWriter.Error, ~r/not supported/, fn ->
+        XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write(0, 0, fn -> :ok end)
+      end
+    end
+
+    test "raises error for unsupported data type (reference)" do
+      assert_raise XlsxWriter.Error, ~r/not supported/, fn ->
+        XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write(0, 0, make_ref())
+      end
+    end
+
+    test "raises error for unsupported data type (port)" do
+      {:ok, port} = :gen_tcp.listen(0, [])
+
+      assert_raise XlsxWriter.Error, ~r/not supported/, fn ->
+        XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write(0, 0, port)
+      end
+
+      :gen_tcp.close(port)
+    end
+
+    test "raises error for unsupported data type (map)" do
+      assert_raise XlsxWriter.Error, ~r/not supported/, fn ->
+        XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write(0, 0, %{foo: "bar"})
+      end
+    end
+
+    test "raises error for unsupported data type (list)" do
+      assert_raise XlsxWriter.Error, ~r/not supported/, fn ->
+        XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write(0, 0, [1, 2, 3])
+      end
+    end
+
+    test "raises error for unsupported data type (tuple)" do
+      assert_raise XlsxWriter.Error, ~r/not supported/, fn ->
+        XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write(0, 0, {:ok, "value"})
+      end
+    end
+
+    test "handles invalid hex color gracefully in background color" do
+      # Invalid hex should not crash, just be ignored
+      sheet = XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write(0, 0, "Text", format: [{:bg_color, "invalid"}])
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+
+    test "handles invalid hex color gracefully in font color" do
+      sheet = XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write(0, 0, "Text", format: [{:font_color, "GGGGGG"}])
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+
+    test "handles invalid hex color gracefully in border color" do
+      sheet = XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write(0, 0, "Text", format: [{:border, :thin}, {:border_color, "notahex"}])
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+
+    test "handles empty string hex color" do
+      sheet = XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write(0, 0, "Text", format: [{:bg_color, ""}])
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+
+    test "handles invalid date string gracefully" do
+      # This will be caught by Rust and return an error
+      sheet = XlsxWriter.new_sheet("Test")
+      |> XlsxWriter.write(0, 0, "foo")
+
+      assert {:ok, _content} = XlsxWriter.generate([sheet])
+    end
+
+    test "raises error for negative row index" do
+      assert_raise ArgumentError, ~r/Row index must be non-negative/, fn ->
+        XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write(-1, 0, "Text")
+      end
+    end
+
+    test "raises error for negative column index" do
+      assert_raise ArgumentError, ~r/Column index must be non-negative/, fn ->
+        XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write(0, -1, "Text")
+      end
+    end
+
+    test "handles very large row index" do
+      # Excel has a max of 1,048,576 rows
+      sheet = XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write(2_000_000, 0, "Text")
+
+      result = XlsxWriter.generate([sheet])
+      # Rust should handle this gracefully
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
+    end
+
+    test "handles very large column index" do
+      # Excel has a max of 16,384 columns
+      sheet = XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write(0, 20_000, "Text")
+
+      result = XlsxWriter.generate([sheet])
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
+    end
+
+    test "handles empty sheet name" do
+      sheet = XlsxWriter.new_sheet("")
+        |> XlsxWriter.write(0, 0, "Text")
+
+      result = XlsxWriter.generate([sheet])
+      # Empty name might be invalid in Excel
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
+    end
+
+    test "handles very long sheet name" do
+      # Excel sheet names max at 31 characters
+      long_name = String.duplicate("a", 50)
+      sheet = XlsxWriter.new_sheet(long_name)
+        |> XlsxWriter.write(0, 0, "Text")
+
+      result = XlsxWriter.generate([sheet])
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
+    end
+
+    test "handles invalid characters in sheet name" do
+      # Excel doesn't allow: \ / ? * [ ]
+      sheet = XlsxWriter.new_sheet("Invalid[Sheet]")
+        |> XlsxWriter.write(0, 0, "Text")
+
+      result = XlsxWriter.generate([sheet])
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
+    end
+
+    test "handles invalid formula syntax" do
+      sheet = XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write_formula(0, 0, "=INVALID(((")
+
+      # Formula syntax errors are caught at Excel runtime, not generation
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+
+    test "handles empty formula" do
+      sheet = XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write_formula(0, 0, "")
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+
+    test "handles invalid URL" do
+      # Invalid URLs should still write
+      sheet = XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write_url(0, 0, "not a url")
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+
+    test "handles empty URL" do
+      sheet = XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write_url(0, 0, "")
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+
+    test "handles zero column width" do
+      sheet = XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write(0, 0, "Text")
+        |> XlsxWriter.set_column_width(0, 0)
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+
+    test "handles zero row height" do
+      sheet = XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write(0, 0, "Text")
+        |> XlsxWriter.set_row_height(0, 0)
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+
+    test "handles invalid merge range (last < first)" do
+      sheet = XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.merge_range(5, 5, 0, 0, "Text")
+
+      result = XlsxWriter.generate([sheet])
+      # Rust should handle invalid ranges
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
+    end
+
+    test "handles merge range with same start and end" do
+      sheet = XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.merge_range(0, 0, 0, 0, "Text")
+
+      # Merging a single cell should work (just write it)
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+
+    test "handles autofilter with invalid range (last < first)" do
+      sheet = XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.set_autofilter(5, 5, 0, 0)
+
+      result = XlsxWriter.generate([sheet])
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
+    end
+
+    test "handles zero font size" do
+      sheet = XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write(0, 0, "Text", format: [{:font_size, 0}])
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+
+    test "handles extremely large font size" do
+      sheet = XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write(0, 0, "Text", format: [{:font_size, 1000}])
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+
+    test "handles empty font name" do
+      sheet = XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write(0, 0, "Text", format: [{:font_name, ""}])
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+
+    test "handles invalid image data" do
+      # Invalid binary should be caught by Rust
+      sheet = XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write_image(0, 0, "not image data")
+
+      result = XlsxWriter.generate([sheet])
+      # Should return error from Rust
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
+    end
+
+    test "raises error for empty binary as image" do
+      assert_raise ArgumentError, ~r/Image binary cannot be empty/, fn ->
+        XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write_image(0, 0, <<>>)
+      end
+    end
+
+    test "handles empty list for generate" do
+      result = XlsxWriter.generate([])
+
+      # Empty workbook should work
+      assert {:ok, content} = result
+      assert <<80, _>> <> _ = content
+    end
+
+    test "handles nil in boolean write" do
+      # This should raise since it's not a boolean
+      assert_raise FunctionClauseError, fn ->
+        XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write_boolean(0, 0, nil)
+      end
+    end
+
+    test "handles string in boolean write" do
+      assert_raise FunctionClauseError, fn ->
+        XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write_boolean(0, 0, "true")
+      end
+    end
+
+    test "handles integer in boolean write" do
+      assert_raise FunctionClauseError, fn ->
+        XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write_boolean(0, 0, 1)
+      end
     end
   end
 

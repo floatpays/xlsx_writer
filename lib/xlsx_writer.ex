@@ -187,10 +187,12 @@ defmodule XlsxWriter do
 
   """
   def write({name, instructions}, row, col, val, opts \\ []) do
+    validate_cell_position!(row, col)
+
     case Keyword.get(opts, :format) do
       nil ->
         {name, [{:write, row, col, to_rust_val(val)} | instructions]}
-      
+
       formats when is_list(formats) ->
         write_with_format({name, instructions}, row, col, val, formats)
     end
@@ -218,6 +220,7 @@ defmodule XlsxWriter do
 
   """
   def write_formula({name, instructions}, row, col, val) do
+    validate_cell_position!(row, col)
     {name, [{:write, row, col, {:formula, val}} | instructions]}
   end
 
@@ -248,6 +251,8 @@ defmodule XlsxWriter do
 
   """
   def write_boolean({name, instructions}, row, col, val, opts \\ []) when is_boolean(val) do
+    validate_cell_position!(row, col)
+
     case Keyword.get(opts, :format) do
       nil ->
         {name, [{:write, row, col, {:boolean, val}} | instructions]}
@@ -286,6 +291,7 @@ defmodule XlsxWriter do
 
   """
   def write_url({name, instructions}, row, col, url, opts \\ []) when is_binary(url) do
+    validate_cell_position!(row, col)
     text = Keyword.get(opts, :text)
     formats = Keyword.get(opts, :format)
 
@@ -332,6 +338,7 @@ defmodule XlsxWriter do
 
   """
   def write_blank({name, instructions}, row, col, opts \\ []) do
+    validate_cell_position!(row, col)
     formats = Keyword.get(opts, :format, [])
     {name, [{:write, row, col, {:blank, formats}} | instructions]}
   end
@@ -374,6 +381,13 @@ defmodule XlsxWriter do
 
   """
   def write_image({name, instructions}, row, col, image_binary) do
+    validate_cell_position!(row, col)
+
+    # Validate image is not empty
+    if byte_size(image_binary) == 0 do
+      raise ArgumentError, "Image binary cannot be empty"
+    end
+
     {name, [{:write, row, col, {:image, image_binary}} | instructions]}
   end
 
@@ -638,6 +652,18 @@ defmodule XlsxWriter do
        {:boolean_with_format, val, formats}}
 
     {name, [instruction | instructions]}
+  end
+
+  defp validate_cell_position!(row, col) do
+    if row < 0 do
+      raise ArgumentError, "Row index must be non-negative, got: #{row}"
+    end
+
+    if col < 0 do
+      raise ArgumentError, "Column index must be non-negative, got: #{col}"
+    end
+
+    :ok
   end
 
   defp to_rust_val(val) do
