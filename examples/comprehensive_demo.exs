@@ -265,7 +265,7 @@ invoice_sheet =
 ])
 
 # Write to file in examples folder
-output_file = Path.join(__DIR__, "comprehensive_demo.xlsx")
+output_file = Path.join(__DIR__, "output/comprehensive_demo.xlsx")
 File.write!(output_file, content)
 
 IO.puts("✓ Generated #{output_file}")

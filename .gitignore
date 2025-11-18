@@ -30,4 +30,4 @@ test*.xlsx
 
 priv/native/*.so
 /native/xlsx_writer/target/
-/examples/comprehensive_demo.xlsx
+/examples/output/

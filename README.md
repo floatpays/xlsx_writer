@@ -23,6 +23,28 @@ A high-performance Elixir library for creating Excel (.xlsx) spreadsheets. Built
 
 ## Quick Start
 
+### Simple API (Builder) - ⚠️ Experimental
+
+For quickly generating files without manually tracking cell positions:
+
+```elixir
+alias XlsxWriter.Builder
+
+Builder.create()
+|> Builder.add_sheet("Sales Data")
+|> Builder.add_rows([
+  [{"Product", format: [:bold]}, {"Sales", format: [:bold]}, {"In Stock", format: [:bold]}],
+  ["Widget A", {1500.50, format: [{:num_format, "$#,##0.00"}]}, true]
+])
+|> Builder.write_file("sales.xlsx")
+```
+
+> Note: The Builder API is experimental and may change in future releases. See the [Builder API section](#builder-api-high-level) for details.
+
+### Low-Level API
+
+For precise control over cell positioning and advanced features:
+
 ```elixir
 # Create a simple spreadsheet
 sheet =
@@ -59,7 +81,133 @@ This generates `comprehensive_demo.xlsx` with 8 sheets demonstrating:
 
 Perfect for learning the library or as a reference!
 
-## Detailed Usage
+## Builder API (High-Level)
+
+> **⚠️ Experimental Feature**: The Builder API is experimental and may change in future releases. While functional and tested, the API design may evolve based on user feedback. Use with caution in production code and expect potential breaking changes.
+
+The `XlsxWriter.Builder` module provides a simplified API for generating Excel files without manually tracking cell positions. Perfect for quickly dumping data into spreadsheets.
+
+### Basic Usage
+
+```elixir
+alias XlsxWriter.Builder
+
+# Simple data export
+Builder.create()
+|> Builder.add_sheet("Summary")
+|> Builder.add_rows([
+  ["Name", "Age", "City"],
+  ["Alice", 30, "NYC"],
+  ["Bob", 25, "LA"]
+])
+|> Builder.write_file("report.xlsx")
+```
+
+### With Formatting
+
+Format individual cells using tuples with options:
+
+```elixir
+Builder.create()
+|> Builder.add_sheet("Q1 Report")
+|> Builder.add_rows([
+  # Header row with bold formatting and column widths
+  [{"Quarter", format: [:bold], width: 15}, {"Revenue", format: [:bold], width: 15}],
+  ["Q1", {170000, format: [{:num_format, "$#,##0"}]}],
+  ["Q2", {185000, format: [{:num_format, "$#,##0"}]}]
+])
+|> Builder.skip_rows(1)  # Add spacing
+|> Builder.add_rows([
+  [{"Total", format: [:bold, :italic]}, {355000, format: [{:num_format, "$#,##0"}]}]
+])
+|> Builder.write_file("styled_report.xlsx")
+```
+
+### Multiple Sheets
+
+Switch between sheets effortlessly:
+
+```elixir
+Builder.create()
+|> Builder.add_sheet("Summary")
+|> Builder.add_rows([
+  [{"Total Sales", format: [:bold]}, 250000]
+])
+|> Builder.add_sheet("Details")
+|> Builder.add_rows([
+  [{"Product", format: [:bold]}, {"Amount", format: [:bold]}],
+  ["Widget A", 50000],
+  ["Widget B", 62000]
+])
+|> Builder.write_file("workbook.xlsx")
+```
+
+### Large Datasets
+
+Ideal for exporting large amounts of data:
+
+```elixir
+# Generate 10,000 rows efficiently
+data = Enum.map(1..10_000, fn i ->
+  ["Record #{i}", i * 100, :rand.uniform(1000)]
+end)
+
+Builder.create()
+|> Builder.add_sheet("Data")
+|> Builder.add_rows([
+  [{"ID", format: [:bold]}, {"Value", format: [:bold]}, {"Score", format: [:bold]}]
+])
+|> Builder.add_rows(data)
+|> Builder.write_file("large.xlsx")
+```
+
+### Positioning Options
+
+Override cursor position when needed:
+
+```elixir
+Builder.create()
+|> Builder.add_sheet("Layout")
+|> Builder.add_rows([["Top Left"]], start_row: 0, start_col: 0)
+|> Builder.add_rows([["Offset Data"]], start_row: 5, start_col: 5)
+|> Builder.write_file("positioned.xlsx")
+```
+
+### Available Format Options in Builder
+
+When using tuple format `{value, opts}`, you can specify:
+
+- `width: number` - Column width (Builder-specific, applies to entire column)
+- `format: [...]` - List of XlsxWriter format options:
+  - `:bold` - Bold text
+  - `:italic` - Italic text
+  - `:strikethrough` - Strikethrough text
+  - `{:font_size, number}` - Font size in points
+  - `{:font_color, "#RRGGBB"}` - Font color (hex)
+  - `{:bg_color, "#RRGGBB"}` - Background color (hex)
+  - `{:align, :left | :center | :right}` - Text alignment
+  - `{:num_format, "format_string"}` - Number format
+  - `{:border, style}` - Border style (`:thin`, `:medium`, `:thick`, etc.)
+  - `{:border_top, style}`, `{:border_bottom, style}`, etc. - Individual borders
+
+The `format` option uses the same format list as `XlsxWriter.write/5`.
+
+### Builder Demo
+
+Run the Builder examples to see all features:
+
+```bash
+mix run examples/builder_demo.exs
+```
+
+This creates 5 example files demonstrating:
+- Simple reports with automatic positioning
+- Multi-sheet workbooks with formatting
+- Large dataset generation (1000+ rows)
+- Complex formatting with colors and styles
+- Positioned data with explicit coordinates
+
+## Detailed Usage (Low-Level API)
 
 ```elixir
 filename = "test2.xlsx"
