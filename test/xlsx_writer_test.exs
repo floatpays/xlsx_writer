@@ -1,5 +1,6 @@
 defmodule XlsxWriterTest do
   use ExUnit.Case
+
   doctest XlsxWriter
 
   describe "write/1" do
@@ -279,9 +280,15 @@ defmodule XlsxWriterTest do
     test "range operations with data and formatting" do
       sheet =
         XlsxWriter.new_sheet("Formatted Ranges")
-        |> XlsxWriter.write(0, 0, "Header 1", format: [:bold, {:bg_color, "#4472C4"}])
-        |> XlsxWriter.write(0, 1, "Header 2", format: [:bold, {:bg_color, "#4472C4"}])
-        |> XlsxWriter.write(0, 2, "Header 3", format: [:bold, {:bg_color, "#4472C4"}])
+        |> XlsxWriter.write(0, 0, "Header 1",
+          format: [:bold, {:bg_color, "#4472C4"}]
+        )
+        |> XlsxWriter.write(0, 1, "Header 2",
+          format: [:bold, {:bg_color, "#4472C4"}]
+        )
+        |> XlsxWriter.write(0, 2, "Header 3",
+          format: [:bold, {:bg_color, "#4472C4"}]
+        )
         |> XlsxWriter.set_column_range_width(0, 2, 120)
         |> XlsxWriter.set_row_range_height(0, 0, 35)
         |> XlsxWriter.write(1, 0, "Data 1")
@@ -595,6 +602,42 @@ defmodule XlsxWriterTest do
 
       assert {:ok, content} = XlsxWriter.generate([sheet])
       assert <<80, _>> <> _ = content
+    end
+
+    test "handles boolean as hex color gracefully in background color" do
+      # Boolean values should raise XlsxWriter.Error with helpful message
+      assert_raise XlsxWriter.Error,
+                   ~r/bg_color.*expects a string hex color.*got: true/,
+                   fn ->
+                     XlsxWriter.new_sheet("Test")
+                     |> XlsxWriter.write(0, 0, "Text",
+                       format: [{:bg_color, true}]
+                     )
+                   end
+    end
+
+    test "handles boolean as hex color gracefully in font color" do
+      # Boolean values should raise XlsxWriter.Error with helpful message
+      assert_raise XlsxWriter.Error,
+                   ~r/font_color.*expects a string hex color.*got: false/,
+                   fn ->
+                     XlsxWriter.new_sheet("Test")
+                     |> XlsxWriter.write(0, 0, "Text",
+                       format: [{:font_color, false}]
+                     )
+                   end
+    end
+
+    test "handles integer as hex color gracefully in border color" do
+      # Integer values should raise XlsxWriter.Error with helpful message
+      assert_raise XlsxWriter.Error,
+                   ~r/border_color.*expects a string hex color.*got: 123/,
+                   fn ->
+                     XlsxWriter.new_sheet("Test")
+                     |> XlsxWriter.write(0, 0, "Text",
+                       format: [{:border, :thin}, {:border_color, 123}]
+                     )
+                   end
     end
 
     test "handles invalid date string gracefully" do

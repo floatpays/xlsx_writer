@@ -52,6 +52,7 @@ defmodule XlsxWriter do
   See the [full documentation](https://hexdocs.pm/xlsx_writer) for detailed function references.
   """
   alias XlsxWriter.RustXlsxWriter
+  alias XlsxWriter.Validation
 
   @doc """
   Generates an Excel xlsx file from a list of sheets.
@@ -188,7 +189,7 @@ defmodule XlsxWriter do
 
   """
   def write({name, instructions}, row, col, val, opts \\ []) do
-    validate_cell_position!(row, col)
+    Validation.validate_cell_position!(row, col)
 
     case Keyword.get(opts, :format) do
       nil ->
@@ -221,7 +222,7 @@ defmodule XlsxWriter do
 
   """
   def write_formula({name, instructions}, row, col, val) do
-    validate_cell_position!(row, col)
+    Validation.validate_cell_position!(row, col)
     {name, [{:write, row, col, {:formula, val}} | instructions]}
   end
 
@@ -251,15 +252,22 @@ defmodule XlsxWriter do
       iex> {"Test", [{:write, 0, 0, {:boolean_with_format, false, [:bold]}}]} = sheet
 
   """
-  def write_boolean({name, instructions}, row, col, val, opts \\ []) when is_boolean(val) do
-    validate_cell_position!(row, col)
+  def write_boolean({name, instructions}, row, col, val, opts \\ [])
+      when is_boolean(val) do
+    Validation.validate_cell_position!(row, col)
 
     case Keyword.get(opts, :format) do
       nil ->
         {name, [{:write, row, col, {:boolean, val}} | instructions]}
 
       formats when is_list(formats) ->
-        {name, [{:write, row, col, {:boolean_with_format, val, formats}} | instructions]}
+        Validation.validate_formats!(formats)
+
+        {name,
+         [
+           {:write, row, col, {:boolean_with_format, val, formats}}
+           | instructions
+         ]}
     end
   end
 
@@ -291,10 +299,13 @@ defmodule XlsxWriter do
       iex> {"Test", [{:write, 0, 0, {:url_with_text, "https://example.com", "Click here"}}]} = sheet
 
   """
-  def write_url({name, instructions}, row, col, url, opts \\ []) when is_binary(url) do
-    validate_cell_position!(row, col)
+  def write_url({name, instructions}, row, col, url, opts \\ [])
+      when is_binary(url) do
+    Validation.validate_cell_position!(row, col)
     text = Keyword.get(opts, :text)
     formats = Keyword.get(opts, :format)
+
+    if formats && is_list(formats), do: Validation.validate_formats!(formats)
 
     instruction =
       case {text, formats} do
@@ -339,13 +350,18 @@ defmodule XlsxWriter do
 
   """
   def write_blank({name, instructions}, row, col, opts \\ []) do
-    validate_cell_position!(row, col)
+    Validation.validate_cell_position!(row, col)
     formats = Keyword.get(opts, :format, [])
+
+    if is_list(formats) && formats != [],
+      do: Validation.validate_formats!(formats)
+
     {name, [{:write, row, col, {:blank, formats}} | instructions]}
   end
 
   defp write_with_format({name, instructions}, row, col, val, formats)
        when is_binary(val) do
+    Validation.validate_formats!(formats)
     instruction = {:write, row, col, {:string_with_format, val, formats}}
 
     {name, [instruction | instructions]}
@@ -353,6 +369,8 @@ defmodule XlsxWriter do
 
   defp write_with_format({name, instructions}, row, col, numeric_val, formats)
        when is_number(numeric_val) do
+    Validation.validate_formats!(formats)
+
     instruction =
       {:write, row, col, {:number_with_format, numeric_val, formats}}
 
@@ -382,12 +400,8 @@ defmodule XlsxWriter do
 
   """
   def write_image({name, instructions}, row, col, image_binary) do
-    validate_cell_position!(row, col)
-
-    # Validate image is not empty
-    if byte_size(image_binary) == 0 do
-      raise ArgumentError, "Image binary cannot be empty"
-    end
+    Validation.validate_cell_position!(row, col)
+    Validation.validate_image_binary!(image_binary)
 
     {name, [{:write, row, col, {:image, image_binary}} | instructions]}
   end
@@ -464,7 +478,8 @@ defmodule XlsxWriter do
 
   """
   def set_column_range_width({name, instructions}, first_col, last_col, width) do
-    {name, [{:set_column_range_width, first_col, last_col, width} | instructions]}
+    {name,
+     [{:set_column_range_width, first_col, last_col, width} | instructions]}
   end
 
   @doc """
@@ -491,7 +506,8 @@ defmodule XlsxWriter do
 
   """
   def set_row_range_height({name, instructions}, first_row, last_row, height) do
-    {name, [{:set_row_range_height, first_row, last_row, height} | instructions]}
+    {name,
+     [{:set_row_range_height, first_row, last_row, height} | instructions]}
   end
 
   @doc """
@@ -603,8 +619,18 @@ defmodule XlsxWriter do
       iex> {"Test", [{:set_autofilter, 0, 0, 0, 4}]} = sheet
 
   """
-  def set_autofilter({name, instructions}, first_row, first_col, last_row, last_col) do
-    {name, [{:set_autofilter, first_row, first_col, last_row, last_col} | instructions]}
+  def set_autofilter(
+        {name, instructions},
+        first_row,
+        first_col,
+        last_row,
+        last_col
+      ) do
+    {name,
+     [
+       {:set_autofilter, first_row, first_col, last_row, last_col}
+       | instructions
+     ]}
   end
 
   @doc """
@@ -640,10 +666,23 @@ defmodule XlsxWriter do
       iex> {"Test", [{:merge_range, 1, 1, 3, 1, {:float, 100}}]} = sheet
 
   """
-  def merge_range({name, instructions}, first_row, first_col, last_row, last_col, val, opts \\ []) do
+  def merge_range(
+        {name, instructions},
+        first_row,
+        first_col,
+        last_row,
+        last_col,
+        val,
+        opts \\ []
+      ) do
     case Keyword.get(opts, :format) do
       nil ->
-        {name, [{:merge_range, first_row, first_col, last_row, last_col, to_rust_val(val)} | instructions]}
+        {name,
+         [
+           {:merge_range, first_row, first_col, last_row, last_col,
+            to_rust_val(val)}
+           | instructions
+         ]}
 
       formats when is_list(formats) ->
         merge_range_with_format(
@@ -668,6 +707,8 @@ defmodule XlsxWriter do
          formats
        )
        when is_binary(val) do
+    Validation.validate_formats!(formats)
+
     instruction =
       {:merge_range, first_row, first_col, last_row, last_col,
        {:string_with_format, val, formats}}
@@ -685,6 +726,8 @@ defmodule XlsxWriter do
          formats
        )
        when is_number(numeric_val) do
+    Validation.validate_formats!(formats)
+
     instruction =
       {:merge_range, first_row, first_col, last_row, last_col,
        {:number_with_format, numeric_val, formats}}
@@ -702,23 +745,13 @@ defmodule XlsxWriter do
          formats
        )
        when is_boolean(val) do
+    Validation.validate_formats!(formats)
+
     instruction =
       {:merge_range, first_row, first_col, last_row, last_col,
        {:boolean_with_format, val, formats}}
 
     {name, [instruction | instructions]}
-  end
-
-  defp validate_cell_position!(row, col) do
-    if row < 0 do
-      raise ArgumentError, "Row index must be non-negative, got: #{row}"
-    end
-
-    if col < 0 do
-      raise ArgumentError, "Column index must be non-negative, got: #{col}"
-    end
-
-    :ok
   end
 
   defp to_rust_val(val) do
@@ -751,8 +784,7 @@ defmodule XlsxWriter do
         {:string, Atom.to_string(val)}
 
       other ->
-        raise XlsxWriter.Error,
-              "The data type for value \"#{inspect(other)}\" is not supported."
+        Validation.validate_supported_type!(other)
     end
   end
 end
