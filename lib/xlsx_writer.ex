@@ -1,97 +1,54 @@
 defmodule XlsxWriter do
   @moduledoc """
-  A library for creating Excel xlsx files in Elixir.
+  A high-performance library for creating Excel xlsx files in Elixir.
 
-  XlsxWriter provides a simple API for generating Excel spreadsheets with support for
-  various data types, formatting, formulas, images, and layout customization.
+  Built with the powerful `rust_xlsxwriter` crate via Rustler NIF for excellent speed
+  and memory efficiency. Supports rich formatting, formulas, images, and advanced layout features.
 
-  ## Basic Usage
+  ## Quick Start
 
-  Create a new sheet and write data to it:
+      sheet = XlsxWriter.new_sheet("My Sheet")
+        |> XlsxWriter.write(0, 0, "Hello", format: [:bold])
+        |> XlsxWriter.write(0, 1, "World")
 
-      iex> sheet = XlsxWriter.new_sheet("My Sheet")
-      iex> sheet = XlsxWriter.write(sheet, 0, 0, "Hello")
-      iex> sheet = XlsxWriter.write(sheet, 0, 1, "World")
-      iex> {:ok, _xlsx_content} = XlsxWriter.generate([sheet])
+      {:ok, xlsx_content} = XlsxWriter.generate([sheet])
+      File.write!("output.xlsx", xlsx_content)
 
-  ## Supported Data Types
+  ## Key Features
 
-  XlsxWriter automatically handles various Elixir data types:
+  - **Data Types**: Strings, numbers, dates, booleans, URLs, formulas, images
+  - **Rich Formatting**: Fonts, colors, borders, alignment, number formats
+  - **Layout Control**: Freeze panes, merged cells, autofilters, hide rows/columns
+  - **High Performance**: Rust-powered NIF for fast generation of large spreadsheets
 
-      iex> sheet = XlsxWriter.new_sheet("Data Types")
-      iex> sheet = sheet
-      ...>   |> XlsxWriter.write(0, 0, "String")
-      ...>   |> XlsxWriter.write(1, 0, 42)
-      ...>   |> XlsxWriter.write(2, 0, 3.14)
-      ...>   |> XlsxWriter.write(3, 0, Date.utc_today())
-      ...>   |> XlsxWriter.write(4, 0, DateTime.utc_now())
-      ...>   |> XlsxWriter.write(5, 0, Decimal.new("99.99"))
-      ...>   |> XlsxWriter.write_boolean(6, 0, true)
-      ...>   |> XlsxWriter.write_url(7, 0, "https://example.com")
-      iex> {:ok, _xlsx_content} = XlsxWriter.generate([sheet])
+  ## Guides
 
-  ## Formatting
+  - [Getting Started](guides/getting_started.md) - Basic usage and data types
+  - [Advanced Formatting](guides/formatting.md) - Fonts, colors, borders, and number formats
+  - [Layout Features](guides/layout_features.md) - Freeze panes, merged cells, autofilters, and more
 
-  Apply formatting to cells using the `:format` option:
+  ## API Overview
 
-      iex> sheet = XlsxWriter.new_sheet("Formatted")
-      iex> sheet = sheet
-      ...>   |> XlsxWriter.write(0, 0, "Bold Text", format: [:bold])
-      ...>   |> XlsxWriter.write(0, 1, "Centered", format: [{:align, :center}])
-      ...>   |> XlsxWriter.write(0, 2, "Yellow BG", format: [{:bg_color, "#FFFF00"}])
-      ...>   |> XlsxWriter.write(0, 3, 1234.56)
-      iex> {:ok, _xlsx_content} = XlsxWriter.generate([sheet])
+  ### Core Functions
+  - `generate/1` - Generate XLSX binary from sheets
+  - `new_sheet/1` - Create a new worksheet
 
-  ## Formulas
+  ### Writing Data
+  - `write/5` - Write any value to a cell
+  - `write_formula/4` - Write Excel formula
+  - `write_boolean/5` - Write boolean value
+  - `write_url/5` - Write clickable URL
+  - `write_image/4` - Embed image
+  - `write_blank/4` - Write formatted blank cell
 
-  Write Excel formulas to cells:
+  ### Layout & Structure
+  - `set_column_width/3`, `set_row_height/3` - Size columns and rows
+  - `freeze_panes/3` - Lock rows/columns when scrolling
+  - `merge_range/7` - Combine multiple cells
+  - `hide_row/2`, `hide_column/2` - Hide rows/columns
+  - `set_autofilter/5` - Add dropdown filters to headers
 
-      iex> sheet = XlsxWriter.new_sheet("Formulas")
-      iex> sheet = sheet
-      ...>   |> XlsxWriter.write(0, 0, 10)
-      ...>   |> XlsxWriter.write(0, 1, 20)
-      ...>   |> XlsxWriter.write_formula(0, 2, "=A1+B1")
-      iex> {:ok, _xlsx_content} = XlsxWriter.generate([sheet])
-
-  ## Column and Row Sizing
-
-  Customize column widths and row heights:
-
-      iex> sheet = XlsxWriter.new_sheet("Sized")
-      iex> sheet = sheet
-      ...>   |> XlsxWriter.write(0, 0, "Wide Column")
-      ...>   |> XlsxWriter.set_column_width(0, 25)
-      ...>   |> XlsxWriter.set_row_height(0, 40)
-      iex> {:ok, _xlsx_content} = XlsxWriter.generate([sheet])
-
-  ## Multiple Sheets
-
-  Create workbooks with multiple sheets:
-
-      iex> sheet1 = XlsxWriter.new_sheet("First Sheet")
-      ...>   |> XlsxWriter.write(0, 0, "Sheet 1 Data")
-      iex> sheet2 = XlsxWriter.new_sheet("Second Sheet")
-      ...>   |> XlsxWriter.write(0, 0, "Sheet 2 Data")
-      iex> {:ok, _xlsx_content} = XlsxWriter.generate([sheet1, sheet2])
-
-  ## Complete Example
-
-  Here's a comprehensive example showing various features:
-
-      iex> sheet = XlsxWriter.new_sheet("Sales Report")
-      ...>   |> XlsxWriter.write(0, 0, "Product", format: [:bold])
-      ...>   |> XlsxWriter.write(0, 1, "Quantity", format: [:bold])
-      ...>   |> XlsxWriter.write(0, 2, "Price", format: [:bold])
-      ...>   |> XlsxWriter.write(0, 3, "Total", format: [:bold])
-      ...>   |> XlsxWriter.write(1, 0, "Widget A")
-      ...>   |> XlsxWriter.write(1, 1, 100)
-      ...>   |> XlsxWriter.write(1, 2, 9.99)
-      ...>   |> XlsxWriter.write_formula(1, 3, "=B2*C2")
-      ...>   |> XlsxWriter.set_column_width(0, 15)
-      ...>   |> XlsxWriter.set_column_width(1, 12)
-      ...>   |> XlsxWriter.set_column_width(2, 12)
-      ...>   |> XlsxWriter.set_column_width(3, 12)
-      iex> {:ok, _xlsx_content} = XlsxWriter.generate([sheet])
+  See the [full documentation](https://hexdocs.pm/xlsx_writer) for detailed function references.
   """
   alias XlsxWriter.RustXlsxWriter
 
