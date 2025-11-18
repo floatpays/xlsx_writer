@@ -8,7 +8,7 @@ A high-performance Elixir library for creating Excel (.xlsx) spreadsheets. Built
 
 - ⚡ **Fast**: Leverages Rust for high-performance spreadsheet generation
 - 🧠 **Memory efficient**: Handles large datasets without excessive memory usage
-- 📊 **Rich formatting**: Support for fonts, colors, alignment, number formats, and more
+- 📊 **Rich formatting**: Support for fonts, background colors, alignment, number formats, and more
 - 🖼️ **Images**: Embed images directly into spreadsheets
 - 📐 **Layout control**: Set column widths, row heights, freeze panes, hide rows/columns
 - 🧮 **Formulas**: Write Excel formulas and functions
@@ -114,6 +114,41 @@ sheet =
 
 {:ok, content} = XlsxWriter.generate([sheet])
 File.write!("data_types.xlsx", content)
+```
+
+### Cell Background Colors
+
+Add visual emphasis with cell background colors:
+
+```elixir
+sheet =
+  XlsxWriter.new_sheet("Status Report")
+  # Headers with background colors
+  |> XlsxWriter.write(0, 0, "Status", format: [:bold, {:bg_color, "#4472C4"}])
+  |> XlsxWriter.write(0, 1, "Item", format: [:bold, {:bg_color, "#4472C4"}])
+  |> XlsxWriter.write(0, 2, "Value", format: [:bold, {:bg_color, "#4472C4"}])
+
+  # Success (green)
+  |> XlsxWriter.write(1, 0, "Complete", format: [{:bg_color, "#C6E0B4"}])
+  |> XlsxWriter.write(1, 1, "Task A")
+  |> XlsxWriter.write(1, 2, 100)
+
+  # Warning (yellow)
+  |> XlsxWriter.write(2, 0, "Pending", format: [{:bg_color, "#FFE699"}])
+  |> XlsxWriter.write(2, 1, "Task B")
+  |> XlsxWriter.write(2, 2, 75)
+
+  # Error (red)
+  |> XlsxWriter.write(3, 0, "Failed", format: [{:bg_color, "#F4B084"}])
+  |> XlsxWriter.write(3, 1, "Task C")
+  |> XlsxWriter.write(3, 2, 0)
+
+  # Combined formatting
+  |> XlsxWriter.write(4, 0, "Total",
+      format: [:bold, {:align, :center}, {:bg_color, "#D9D9D9"}])
+
+{:ok, content} = XlsxWriter.generate([sheet])
+File.write!("status_report.xlsx", content)
 ```
 
 ### Layout Features

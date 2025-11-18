@@ -9,6 +9,7 @@
 - Add hide row/column support via `hide_row/2` and `hide_column/2` - hide specific rows or columns
 - Add autofilter support via `set_autofilter/5` - add dropdown filter buttons to column headers
 - Add merged cells support via `merge_range/7` - combine multiple cells into a single cell
+- Add cell background colors via `{:bg_color, hex_color}` format option - set cell background colors with hex codes
 
 # v0.6.0
 

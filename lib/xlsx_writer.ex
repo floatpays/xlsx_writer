@@ -38,7 +38,8 @@ defmodule XlsxWriter do
       iex> sheet = sheet
       ...>   |> XlsxWriter.write(0, 0, "Bold Text", format: [:bold])
       ...>   |> XlsxWriter.write(0, 1, "Centered", format: [{:align, :center}])
-      ...>   |> XlsxWriter.write(0, 2, 1234.56)
+      ...>   |> XlsxWriter.write(0, 2, "Yellow BG", format: [{:bg_color, "#FFFF00"}])
+      ...>   |> XlsxWriter.write(0, 3, 1234.56)
       iex> {:ok, _xlsx_content} = XlsxWriter.generate([sheet])
 
   ## Formulas
@@ -174,6 +175,8 @@ defmodule XlsxWriter do
     - `:bold` - Make text bold
     - `{:align, :left | :center | :right}` - Text alignment
     - `{:num_format, format_string}` - Custom number format
+    - `{:bg_color, hex_color}` - Background color (e.g., "#FFFF00" for yellow)
+    - `{:pattern, :solid | :none | :gray125 | :gray0625}` - Fill pattern
 
   ## Returns
 
@@ -188,6 +191,10 @@ defmodule XlsxWriter do
       iex> sheet = XlsxWriter.new_sheet("Test")
       iex> sheet = XlsxWriter.write(sheet, 0, 0, "Bold", format: [:bold])
       iex> {"Test", [{:write, 0, 0, {:string_with_format, "Bold", [:bold]}}]} = sheet
+
+      iex> sheet = XlsxWriter.new_sheet("Test")
+      iex> sheet = XlsxWriter.write(sheet, 0, 0, "Yellow", format: [{:bg_color, "#FFFF00"}])
+      iex> {"Test", [{:write, 0, 0, {:string_with_format, "Yellow", [{:bg_color, "#FFFF00"}]}}]} = sheet
 
   """
   def write({name, instructions}, row, col, val, opts \\ []) do

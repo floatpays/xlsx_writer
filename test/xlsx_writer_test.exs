@@ -230,6 +230,24 @@ defmodule XlsxWriterTest do
     end
   end
 
+  describe "background colors" do
+    test "generates valid xlsx with background colors" do
+      sheet =
+        XlsxWriter.new_sheet("Colors")
+        |> XlsxWriter.write(0, 0, "Red", format: [{:bg_color, "#FF0000"}])
+        |> XlsxWriter.write(0, 1, "Green", format: [{:bg_color, "#00FF00"}])
+        |> XlsxWriter.write(0, 2, "Blue", format: [{:bg_color, "#0000FF"}])
+        |> XlsxWriter.write(1, 0, "Yellow", format: [{:bg_color, "#FFFF00"}])
+        |> XlsxWriter.write(1, 1, "Cyan", format: [{:bg_color, "#00FFFF"}])
+        |> XlsxWriter.write(1, 2, "Magenta", format: [{:bg_color, "#FF00FF"}])
+        |> XlsxWriter.write(2, 0, "Bold + Color", format: [:bold, {:bg_color, "#FFA500"}])
+        |> XlsxWriter.write(2, 1, 100, format: [{:bg_color, "#90EE90"}, {:num_format, "$#,##0.00"}])
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+  end
+
   describe "phase 1 features integration" do
     test "generates xlsx with all phase 1 features combined" do
       sheet =

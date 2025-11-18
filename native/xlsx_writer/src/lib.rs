@@ -1,4 +1,4 @@
-use rust_xlsxwriter::{ExcelDateTime, Format, FormatAlign, Image, Workbook, Worksheet, XlsxError, Formula, Url};
+use rust_xlsxwriter::{Color, ExcelDateTime, Format, FormatAlign, FormatPattern, Image, Workbook, Worksheet, XlsxError, Formula, Url};
 use rustler::{Binary, NifTaggedEnum};
 
 #[derive(NifTaggedEnum, PartialEq)]
@@ -9,11 +9,21 @@ enum CellAlignPos {
 }
 
 #[derive(NifTaggedEnum, PartialEq)]
+enum CellPattern {
+    Solid,
+    None,
+    Gray125,
+    Gray0625,
+}
+
+#[derive(NifTaggedEnum, PartialEq)]
 enum CellFormat {
     Bold,
     Align(CellAlignPos),
     // Examples of numeric formats: https://docs.rs/rust_xlsxwriter/latest/rust_xlsxwriter/struct.Format.html#examples-2
-    NumFormat(String)
+    NumFormat(String),
+    BgColor(String),
+    Pattern(CellPattern),
 }
 
 #[derive(NifTaggedEnum)]
@@ -215,6 +225,22 @@ fn apply_formats(mut format: Format, formats: &[CellFormat]) -> Format {
                 CellAlignPos::Center => format.set_align(FormatAlign::Center),
                 CellAlignPos::Right => format.set_align(FormatAlign::Right),
                 CellAlignPos::Left => format.set_align(FormatAlign::Left),
+            },
+            CellFormat::BgColor(color_hex) => {
+                // Parse hex color string (e.g., "#FF0000" or "FF0000") to RGB integer
+                let hex_str = color_hex.trim_start_matches('#');
+                if let Ok(rgb) = u32::from_str_radix(hex_str, 16) {
+                    let color = Color::from(rgb);
+                    format.set_background_color(color)
+                } else {
+                    format // Return format unchanged if color parsing fails
+                }
+            }
+            CellFormat::Pattern(pattern) => match pattern {
+                CellPattern::Solid => format.set_pattern(FormatPattern::Solid),
+                CellPattern::None => format.set_pattern(FormatPattern::None),
+                CellPattern::Gray125 => format.set_pattern(FormatPattern::Gray125),
+                CellPattern::Gray0625 => format.set_pattern(FormatPattern::Gray0625),
             },
         };
     }
