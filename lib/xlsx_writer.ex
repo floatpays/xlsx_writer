@@ -429,6 +429,221 @@ defmodule XlsxWriter do
     {name, [{:set_row_height, row, height} | instructions]}
   end
 
+  @doc """
+  Freezes panes at the specified row and column.
+
+  This locks rows and/or columns so they remain visible when scrolling.
+  Very useful for keeping headers visible.
+
+  ## Parameters
+
+  - `sheet` - The sheet tuple `{name, instructions}`
+  - `row` - The row to freeze at (0-based). Rows above this remain visible.
+  - `col` - The column to freeze at (0-based). Columns left of this remain visible.
+
+  ## Returns
+
+  Updated sheet tuple with the freeze panes instruction.
+
+  ## Examples
+
+      # Freeze the first row (header row)
+      iex> sheet = XlsxWriter.new_sheet("Test")
+      iex> sheet = XlsxWriter.freeze_panes(sheet, 1, 0)
+      iex> {"Test", [{:set_freeze_panes, 1, 0}]} = sheet
+
+      # Freeze first column
+      iex> sheet = XlsxWriter.new_sheet("Test")
+      iex> sheet = XlsxWriter.freeze_panes(sheet, 0, 1)
+      iex> {"Test", [{:set_freeze_panes, 0, 1}]} = sheet
+
+      # Freeze first row and first column
+      iex> sheet = XlsxWriter.new_sheet("Test")
+      iex> sheet = XlsxWriter.freeze_panes(sheet, 1, 1)
+      iex> {"Test", [{:set_freeze_panes, 1, 1}]} = sheet
+
+  """
+  def freeze_panes({name, instructions}, row, col) do
+    {name, [{:set_freeze_panes, row, col} | instructions]}
+  end
+
+  @doc """
+  Hides a specific row in the sheet.
+
+  ## Parameters
+
+  - `sheet` - The sheet tuple `{name, instructions}`
+  - `row` - The row index to hide (0-based)
+
+  ## Returns
+
+  Updated sheet tuple with the hide row instruction.
+
+  ## Examples
+
+      iex> sheet = XlsxWriter.new_sheet("Test")
+      iex> sheet = XlsxWriter.hide_row(sheet, 5)
+      iex> {"Test", [{:set_row_hidden, 5}]} = sheet
+
+  """
+  def hide_row({name, instructions}, row) do
+    {name, [{:set_row_hidden, row} | instructions]}
+  end
+
+  @doc """
+  Hides a specific column in the sheet.
+
+  ## Parameters
+
+  - `sheet` - The sheet tuple `{name, instructions}`
+  - `col` - The column index to hide (0-based)
+
+  ## Returns
+
+  Updated sheet tuple with the hide column instruction.
+
+  ## Examples
+
+      iex> sheet = XlsxWriter.new_sheet("Test")
+      iex> sheet = XlsxWriter.hide_column(sheet, 2)
+      iex> {"Test", [{:set_column_hidden, 2}]} = sheet
+
+  """
+  def hide_column({name, instructions}, col) do
+    {name, [{:set_column_hidden, col} | instructions]}
+  end
+
+  @doc """
+  Sets an autofilter on a range of cells.
+
+  Adds dropdown filter buttons to the specified range, typically used on header rows.
+
+  ## Parameters
+
+  - `sheet` - The sheet tuple `{name, instructions}`
+  - `first_row` - The first row of the filter range (0-based)
+  - `first_col` - The first column of the filter range (0-based)
+  - `last_row` - The last row of the filter range (0-based)
+  - `last_col` - The last column of the filter range (0-based)
+
+  ## Returns
+
+  Updated sheet tuple with the autofilter instruction.
+
+  ## Examples
+
+      # Set autofilter on header row (row 0, columns A-E)
+      iex> sheet = XlsxWriter.new_sheet("Test")
+      iex> sheet = XlsxWriter.set_autofilter(sheet, 0, 0, 0, 4)
+      iex> {"Test", [{:set_autofilter, 0, 0, 0, 4}]} = sheet
+
+  """
+  def set_autofilter({name, instructions}, first_row, first_col, last_row, last_col) do
+    {name, [{:set_autofilter, first_row, first_col, last_row, last_col} | instructions]}
+  end
+
+  @doc """
+  Merges a range of cells into a single cell.
+
+  The merged cell will contain the specified value and formatting.
+  All merged cells will appear as one cell in Excel.
+
+  ## Parameters
+
+  - `sheet` - The sheet tuple `{name, instructions}`
+  - `first_row` - The first row of the merge range (0-based)
+  - `first_col` - The first column of the merge range (0-based)
+  - `last_row` - The last row of the merge range (0-based)
+  - `last_col` - The last column of the merge range (0-based)
+  - `val` - The value to write in the merged cell
+  - `opts` - Optional keyword list with formatting options
+
+  ## Returns
+
+  Updated sheet tuple with the merge range instruction.
+
+  ## Examples
+
+      # Merge cells A1:D1 with centered title
+      iex> sheet = XlsxWriter.new_sheet("Test")
+      iex> sheet = XlsxWriter.merge_range(sheet, 0, 0, 0, 3, "Title", format: [:bold, {:align, :center}])
+      iex> {"Test", [{:merge_range, 0, 0, 0, 3, {:string_with_format, "Title", [:bold, {:align, :center}]}}]} = sheet
+
+      # Merge cells for a number
+      iex> sheet = XlsxWriter.new_sheet("Test")
+      iex> sheet = XlsxWriter.merge_range(sheet, 1, 1, 3, 1, 100)
+      iex> {"Test", [{:merge_range, 1, 1, 3, 1, {:float, 100}}]} = sheet
+
+  """
+  def merge_range({name, instructions}, first_row, first_col, last_row, last_col, val, opts \\ []) do
+    case Keyword.get(opts, :format) do
+      nil ->
+        {name, [{:merge_range, first_row, first_col, last_row, last_col, to_rust_val(val)} | instructions]}
+
+      formats when is_list(formats) ->
+        merge_range_with_format(
+          {name, instructions},
+          first_row,
+          first_col,
+          last_row,
+          last_col,
+          val,
+          formats
+        )
+    end
+  end
+
+  defp merge_range_with_format(
+         {name, instructions},
+         first_row,
+         first_col,
+         last_row,
+         last_col,
+         val,
+         formats
+       )
+       when is_binary(val) do
+    instruction =
+      {:merge_range, first_row, first_col, last_row, last_col,
+       {:string_with_format, val, formats}}
+
+    {name, [instruction | instructions]}
+  end
+
+  defp merge_range_with_format(
+         {name, instructions},
+         first_row,
+         first_col,
+         last_row,
+         last_col,
+         numeric_val,
+         formats
+       )
+       when is_number(numeric_val) do
+    instruction =
+      {:merge_range, first_row, first_col, last_row, last_col,
+       {:number_with_format, numeric_val, formats}}
+
+    {name, [instruction | instructions]}
+  end
+
+  defp merge_range_with_format(
+         {name, instructions},
+         first_row,
+         first_col,
+         last_row,
+         last_col,
+         val,
+         formats
+       )
+       when is_boolean(val) do
+    instruction =
+      {:merge_range, first_row, first_col, last_row, last_col,
+       {:boolean_with_format, val, formats}}
+
+    {name, [instruction | instructions]}
+  end
+
   defp to_rust_val(val) do
     case val do
       %Decimal{} = amount ->

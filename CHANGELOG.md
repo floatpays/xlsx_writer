@@ -5,6 +5,10 @@
 - Add native boolean data type support via `write_boolean/5` - write Excel TRUE/FALSE values with optional formatting
 - Add URL/hyperlink support via `write_url/5` - create clickable hyperlinks with custom display text and formatting
 - Add blank cell support via `write_blank/4` - pre-format cells without data
+- Add freeze panes support via `freeze_panes/3` - lock rows/columns when scrolling to keep headers visible
+- Add hide row/column support via `hide_row/2` and `hide_column/2` - hide specific rows or columns
+- Add autofilter support via `set_autofilter/5` - add dropdown filter buttons to column headers
+- Add merged cells support via `merge_range/7` - combine multiple cells into a single cell
 
 # v0.6.0
 

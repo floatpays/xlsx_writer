@@ -10,10 +10,13 @@ A high-performance Elixir library for creating Excel (.xlsx) spreadsheets. Built
 - 🧠 **Memory efficient**: Handles large datasets without excessive memory usage
 - 📊 **Rich formatting**: Support for fonts, colors, alignment, number formats, and more
 - 🖼️ **Images**: Embed images directly into spreadsheets
-- 📐 **Layout control**: Set column widths, row heights, and cell dimensions
+- 📐 **Layout control**: Set column widths, row heights, freeze panes, hide rows/columns
 - 🧮 **Formulas**: Write Excel formulas and functions
 - 🔗 **Hyperlinks**: Create clickable URLs with custom display text
 - ✅ **Booleans**: Native Excel TRUE/FALSE values
+- 🔀 **Merged cells**: Combine multiple cells into one
+- 🔍 **Autofilter**: Add dropdown filters to headers
+- ❄️ **Freeze panes**: Lock headers when scrolling
 - 📄 **Multiple sheets**: Create workbooks with multiple worksheets
 - 🔧 **Simple API**: Clean, pipe-friendly Elixir interface
 
@@ -111,6 +114,49 @@ sheet =
 
 {:ok, content} = XlsxWriter.generate([sheet])
 File.write!("data_types.xlsx", content)
+```
+
+### Layout Features
+
+Control worksheet layout with freeze panes, merged cells, autofilters, and hidden rows/columns:
+
+```elixir
+sheet =
+  XlsxWriter.new_sheet("Sales Report")
+  # Merged header spanning columns A-E
+  |> XlsxWriter.merge_range(0, 0, 0, 4, "Q1 Sales Report",
+      format: [:bold, {:align, :center}])
+
+  # Column headers with bold formatting
+  |> XlsxWriter.write(1, 0, "Product", format: [:bold])
+  |> XlsxWriter.write(1, 1, "Units", format: [:bold])
+  |> XlsxWriter.write(1, 2, "Price", format: [:bold])
+  |> XlsxWriter.write(1, 3, "Total", format: [:bold])
+  |> XlsxWriter.write(1, 4, "Status", format: [:bold])
+
+  # Add dropdown filters to header row
+  |> XlsxWriter.set_autofilter(1, 0, 1, 4)
+
+  # Freeze the first two rows (title + headers)
+  |> XlsxWriter.freeze_panes(2, 0)
+
+  # Data rows
+  |> XlsxWriter.write(2, 0, "Widget A")
+  |> XlsxWriter.write(2, 1, 150)
+  |> XlsxWriter.write(2, 2, 9.99)
+  |> XlsxWriter.write_formula(2, 3, "=B3*C3")
+  |> XlsxWriter.write(2, 4, "Active")
+
+  # Hidden row for internal use
+  |> XlsxWriter.write(3, 0, "Internal Note")
+  |> XlsxWriter.hide_row(3)
+
+  # Hidden column for calculations
+  |> XlsxWriter.write(2, 5, "Hidden Calc")
+  |> XlsxWriter.hide_column(5)
+
+{:ok, content} = XlsxWriter.generate([sheet])
+File.write!("sales_report.xlsx", content)
 ```
 
 ### Booleans and URLs

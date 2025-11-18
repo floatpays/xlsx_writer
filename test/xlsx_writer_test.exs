@@ -166,4 +166,101 @@ defmodule XlsxWriterTest do
       assert byte_size(content) > 0
     end
   end
+
+  describe "freeze_panes/3" do
+    test "generates valid xlsx with frozen panes" do
+      sheet =
+        XlsxWriter.new_sheet("Frozen Panes")
+        |> XlsxWriter.write(0, 0, "Header 1", format: [:bold])
+        |> XlsxWriter.write(0, 1, "Header 2", format: [:bold])
+        |> XlsxWriter.freeze_panes(1, 0)
+        |> XlsxWriter.write(1, 0, "Data 1")
+        |> XlsxWriter.write(1, 1, "Data 2")
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+  end
+
+  describe "hide_row/2 and hide_column/2" do
+    test "generates valid xlsx with hidden row and column" do
+      sheet =
+        XlsxWriter.new_sheet("Hidden")
+        |> XlsxWriter.write(0, 0, "Visible")
+        |> XlsxWriter.write(1, 0, "Hidden Row")
+        |> XlsxWriter.hide_row(1)
+        |> XlsxWriter.write(0, 1, "Visible Col")
+        |> XlsxWriter.write(0, 2, "Hidden Col")
+        |> XlsxWriter.hide_column(2)
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+  end
+
+  describe "set_autofilter/5" do
+    test "generates valid xlsx with autofilter" do
+      sheet =
+        XlsxWriter.new_sheet("Autofilter")
+        |> XlsxWriter.write(0, 0, "Name", format: [:bold])
+        |> XlsxWriter.write(0, 1, "Age", format: [:bold])
+        |> XlsxWriter.write(0, 2, "City", format: [:bold])
+        |> XlsxWriter.set_autofilter(0, 0, 0, 2)
+        |> XlsxWriter.write(1, 0, "Alice")
+        |> XlsxWriter.write(1, 1, 30)
+        |> XlsxWriter.write(1, 2, "NYC")
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+  end
+
+  describe "merge_range/7" do
+    test "generates valid xlsx with merged cells" do
+      sheet =
+        XlsxWriter.new_sheet("Merged")
+        |> XlsxWriter.merge_range(0, 0, 0, 3, "Title", format: [:bold, {:align, :center}])
+        |> XlsxWriter.write(1, 0, "Col 1")
+        |> XlsxWriter.write(1, 1, "Col 2")
+        |> XlsxWriter.merge_range(2, 0, 4, 0, 100)
+        |> XlsxWriter.merge_range(2, 1, 4, 1, true, format: [:bold])
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+  end
+
+  describe "phase 1 features integration" do
+    test "generates xlsx with all phase 1 features combined" do
+      sheet =
+        XlsxWriter.new_sheet("Phase 1 Features")
+        # Merged header
+        |> XlsxWriter.merge_range(0, 0, 0, 4, "Sales Report", format: [:bold, {:align, :center}])
+        # Column headers with autofilter
+        |> XlsxWriter.write(1, 0, "Product", format: [:bold])
+        |> XlsxWriter.write(1, 1, "Q1", format: [:bold])
+        |> XlsxWriter.write(1, 2, "Q2", format: [:bold])
+        |> XlsxWriter.write(1, 3, "Q3", format: [:bold])
+        |> XlsxWriter.write(1, 4, "Q4", format: [:bold])
+        |> XlsxWriter.set_autofilter(1, 0, 1, 4)
+        # Freeze header rows
+        |> XlsxWriter.freeze_panes(2, 0)
+        # Data
+        |> XlsxWriter.write(2, 0, "Widget A")
+        |> XlsxWriter.write(2, 1, 100)
+        |> XlsxWriter.write(2, 2, 150)
+        |> XlsxWriter.write(2, 3, 125)
+        |> XlsxWriter.write(2, 4, 175)
+        # Hidden row
+        |> XlsxWriter.write(3, 0, "Hidden Product")
+        |> XlsxWriter.hide_row(3)
+        # Hidden column data
+        |> XlsxWriter.write(2, 5, "Hidden Data")
+        |> XlsxWriter.hide_column(5)
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+      assert byte_size(content) > 0
+    end
+  end
 end

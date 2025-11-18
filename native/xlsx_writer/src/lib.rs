@@ -41,6 +41,11 @@ enum Sheet<'a> {
     Write(u32, u16, CellData<'a>),
     SetColumnWidth(u16, u32),
     SetRowHeight(u32, u16),
+    SetFreezePanes(u32, u16),
+    SetRowHidden(u32),
+    SetColumnHidden(u16),
+    SetAutofilter(u32, u16, u32, u16),
+    MergeRange(u32, u16, u32, u16, CellData<'a>),
 }
 
 #[rustler::nif]
@@ -59,6 +64,15 @@ fn write(sheets: Vec<(String, Vec<Sheet>)>) -> Result<Vec<u8>, String> {
             let _result = match instruction {
                 Sheet::SetColumnWidth(col, val) => worksheet.set_column_width(col, val),
                 Sheet::SetRowHeight(row, val) => worksheet.set_row_height(row, val),
+                Sheet::SetFreezePanes(row, col) => worksheet.set_freeze_panes(row, col),
+                Sheet::SetRowHidden(row) => worksheet.set_row_hidden(row),
+                Sheet::SetColumnHidden(col) => worksheet.set_column_hidden(col),
+                Sheet::SetAutofilter(first_row, first_col, last_row, last_col) => {
+                    worksheet.autofilter(first_row, first_col, last_row, last_col)
+                }
+                Sheet::MergeRange(first_row, first_col, last_row, last_col, data) => {
+                    merge_range(worksheet, first_row, first_col, last_row, last_col, data)
+                }
                 Sheet::Write(row, col, data) => write_data(worksheet, row, col, data),
             };
         }
@@ -68,6 +82,50 @@ fn write(sheets: Vec<(String, Vec<Sheet>)>) -> Result<Vec<u8>, String> {
         Ok(buf) => Ok(buf),
         Err(e) => Err(e.to_string()),
     };
+}
+
+fn merge_range<'a, 'b>(
+    worksheet: &'a mut Worksheet,
+    first_row: u32,
+    first_col: u16,
+    last_row: u32,
+    last_col: u16,
+    data: CellData<'b>,
+) -> Result<&'a mut Worksheet, XlsxError> {
+    match data {
+        CellData::String(val) => worksheet.merge_range(first_row, first_col, last_row, last_col, &val, &Format::new()),
+        CellData::StringWithFormat(val, formats) => {
+            let format = apply_formats(Format::new(), &formats);
+            worksheet.merge_range(first_row, first_col, last_row, last_col, &val, &format)
+        }
+        CellData::NumberWithFormat(val, formats) => {
+            let format = apply_formats(Format::new(), &formats);
+            // Write value to first cell, then merge the range with the same format
+            worksheet.write_number_with_format(first_row, first_col, val, &format)?;
+            worksheet.merge_range(first_row, first_col, last_row, last_col, "", &format)
+        }
+        CellData::Float(val) => {
+            // Write number to first cell, then merge
+            worksheet.write_number(first_row, first_col, val)?;
+            worksheet.merge_range(first_row, first_col, last_row, last_col, "", &Format::new())
+        }
+        CellData::Boolean(val) => {
+            // Write boolean to first cell, then merge
+            worksheet.write_boolean(first_row, first_col, val)?;
+            worksheet.merge_range(first_row, first_col, last_row, last_col, "", &Format::new())
+        }
+        CellData::BooleanWithFormat(val, formats) => {
+            let format = apply_formats(Format::new(), &formats);
+            worksheet.write_boolean_with_format(first_row, first_col, val, &format)?;
+            worksheet.merge_range(first_row, first_col, last_row, last_col, "", &format)
+        }
+        CellData::Blank(formats) => {
+            let format = apply_formats(Format::new(), &formats);
+            worksheet.merge_range(first_row, first_col, last_row, last_col, "", &format)
+        }
+        // For other types that don't support merge_range, write to first cell only
+        _ => write_data(worksheet, first_row, first_col, data),
+    }
 }
 
 fn write_data<'a, 'b>(
