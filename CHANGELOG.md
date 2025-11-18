@@ -1,3 +1,11 @@
+# v0.7.0
+
+## new features
+
+- Add native boolean data type support via `write_boolean/5` - write Excel TRUE/FALSE values with optional formatting
+- Add URL/hyperlink support via `write_url/5` - create clickable hyperlinks with custom display text and formatting
+- Add blank cell support via `write_blank/4` - pre-format cells without data
+
 # v0.6.0
 
 ## improvements

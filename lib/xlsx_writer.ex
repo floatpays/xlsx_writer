@@ -26,6 +26,8 @@ defmodule XlsxWriter do
       ...>   |> XlsxWriter.write(3, 0, Date.utc_today())
       ...>   |> XlsxWriter.write(4, 0, DateTime.utc_now())
       ...>   |> XlsxWriter.write(5, 0, Decimal.new("99.99"))
+      ...>   |> XlsxWriter.write_boolean(6, 0, true)
+      ...>   |> XlsxWriter.write_url(7, 0, "https://example.com")
       iex> {:ok, _xlsx_content} = XlsxWriter.generate([sheet])
 
   ## Formatting
@@ -221,6 +223,121 @@ defmodule XlsxWriter do
   """
   def write_formula({name, instructions}, row, col, val) do
     {name, [{:write, row, col, {:formula, val}} | instructions]}
+  end
+
+  @doc """
+  Writes a boolean value to a specific cell in the sheet.
+
+  ## Parameters
+
+  - `sheet` - The sheet tuple `{name, instructions}`
+  - `row` - The row index (0-based)
+  - `col` - The column index (0-based)
+  - `val` - The boolean value (true or false)
+  - `opts` - Optional keyword list with formatting options
+
+  ## Returns
+
+  Updated sheet tuple with the new boolean instruction.
+
+  ## Examples
+
+      iex> sheet = XlsxWriter.new_sheet("Test")
+      iex> sheet = XlsxWriter.write_boolean(sheet, 0, 0, true)
+      iex> {"Test", [{:write, 0, 0, {:boolean, true}}]} = sheet
+
+      iex> sheet = XlsxWriter.new_sheet("Test")
+      iex> sheet = XlsxWriter.write_boolean(sheet, 0, 0, false, format: [:bold])
+      iex> {"Test", [{:write, 0, 0, {:boolean_with_format, false, [:bold]}}]} = sheet
+
+  """
+  def write_boolean({name, instructions}, row, col, val, opts \\ []) when is_boolean(val) do
+    case Keyword.get(opts, :format) do
+      nil ->
+        {name, [{:write, row, col, {:boolean, val}} | instructions]}
+
+      formats when is_list(formats) ->
+        {name, [{:write, row, col, {:boolean_with_format, val, formats}} | instructions]}
+    end
+  end
+
+  @doc """
+  Writes a URL/hyperlink to a specific cell in the sheet.
+
+  ## Parameters
+
+  - `sheet` - The sheet tuple `{name, instructions}`
+  - `row` - The row index (0-based)
+  - `col` - The column index (0-based)
+  - `url` - The URL string
+  - `opts` - Optional keyword list with:
+    - `:text` - Display text (different from URL)
+    - `:format` - Format specifications
+
+  ## Returns
+
+  Updated sheet tuple with the new URL instruction.
+
+  ## Examples
+
+      iex> sheet = XlsxWriter.new_sheet("Test")
+      iex> sheet = XlsxWriter.write_url(sheet, 0, 0, "https://example.com")
+      iex> {"Test", [{:write, 0, 0, {:url, "https://example.com"}}]} = sheet
+
+      iex> sheet = XlsxWriter.new_sheet("Test")
+      iex> sheet = XlsxWriter.write_url(sheet, 0, 0, "https://example.com", text: "Click here")
+      iex> {"Test", [{:write, 0, 0, {:url_with_text, "https://example.com", "Click here"}}]} = sheet
+
+  """
+  def write_url({name, instructions}, row, col, url, opts \\ []) when is_binary(url) do
+    text = Keyword.get(opts, :text)
+    formats = Keyword.get(opts, :format)
+
+    instruction =
+      case {text, formats} do
+        {nil, nil} ->
+          {:write, row, col, {:url, url}}
+
+        {text, nil} when is_binary(text) ->
+          {:write, row, col, {:url_with_text, url, text}}
+
+        {nil, formats} when is_list(formats) ->
+          {:write, row, col, {:url_with_format, url, formats}}
+
+        {text, formats} when is_binary(text) and is_list(formats) ->
+          {:write, row, col, {:url_with_text_and_format, url, text, formats}}
+      end
+
+    {name, [instruction | instructions]}
+  end
+
+  @doc """
+  Writes a blank cell with formatting to the sheet.
+
+  A blank cell differs from an empty cell - it has no data but can have formatting.
+  This is useful for pre-formatting cells before data is added.
+
+  ## Parameters
+
+  - `sheet` - The sheet tuple `{name, instructions}`
+  - `row` - The row index (0-based)
+  - `col` - The column index (0-based)
+  - `opts` - Keyword list with `:format` specifications
+
+  ## Returns
+
+  Updated sheet tuple with the new blank cell instruction.
+
+  ## Examples
+
+      iex> sheet = XlsxWriter.new_sheet("Test")
+      iex> sheet = XlsxWriter.write_blank(sheet, 0, 0, format: [:bold, {:bg_color, "#FFFF00"}])
+      iex> {"Test", [{:write, 0, 0, {:blank, [:bold, {:bg_color, "#FFFF00"}]}}]} = sheet
+
+  """
+  def write_blank({name, instructions}, row, col, opts \\ []) do
+    formats = Keyword.get(opts, :format, [])
+    {name, [{:write, row, col, {:blank, formats}} | instructions]}
   end
 
   defp write_with_format({name, instructions}, row, col, val, formats)

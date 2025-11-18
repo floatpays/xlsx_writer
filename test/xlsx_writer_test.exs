@@ -99,4 +99,71 @@ defmodule XlsxWriterTest do
       end
     end
   end
+
+  describe "write_boolean/5" do
+    test "generates valid xlsx with boolean values" do
+      sheet =
+        XlsxWriter.new_sheet("Boolean Test")
+        |> XlsxWriter.write(0, 0, "Boolean Column", format: [:bold])
+        |> XlsxWriter.write_boolean(1, 0, true)
+        |> XlsxWriter.write_boolean(2, 0, false)
+        |> XlsxWriter.write_boolean(3, 0, true, format: [:bold, {:align, :center}])
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+  end
+
+  describe "write_url/5" do
+    test "generates valid xlsx with URLs" do
+      sheet =
+        XlsxWriter.new_sheet("URL Test")
+        |> XlsxWriter.write(0, 0, "Links", format: [:bold])
+        |> XlsxWriter.write_url(1, 0, "https://elixir-lang.org")
+        |> XlsxWriter.write_url(2, 0, "https://hexdocs.pm", text: "Hex Docs")
+        |> XlsxWriter.write_url(3, 0, "https://github.com", format: [:bold])
+        |> XlsxWriter.write_url(4, 0, "https://anthropic.com",
+          text: "Anthropic",
+          format: [{:align, :center}]
+        )
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+  end
+
+  describe "write_blank/4" do
+    test "generates valid xlsx with blank cells" do
+      sheet =
+        XlsxWriter.new_sheet("Blank Test")
+        |> XlsxWriter.write(0, 0, "Header 1", format: [:bold])
+        |> XlsxWriter.write(0, 1, "Header 2", format: [:bold])
+        |> XlsxWriter.write_blank(1, 0, format: [{:align, :center}])
+        |> XlsxWriter.write_blank(1, 1, format: [:bold, {:align, :right}])
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+  end
+
+  describe "new data types integration" do
+    test "generates xlsx with all new data types combined" do
+      sheet =
+        XlsxWriter.new_sheet("All Features")
+        |> XlsxWriter.write(0, 0, "Type", format: [:bold])
+        |> XlsxWriter.write(0, 1, "Value", format: [:bold])
+        |> XlsxWriter.write(1, 0, "Boolean")
+        |> XlsxWriter.write_boolean(1, 1, true)
+        |> XlsxWriter.write(2, 0, "URL")
+        |> XlsxWriter.write_url(2, 1, "https://example.com", text: "Example")
+        |> XlsxWriter.write(3, 0, "Blank")
+        |> XlsxWriter.write_blank(3, 1, format: [{:align, :center}])
+        |> XlsxWriter.set_column_width(0, 20)
+        |> XlsxWriter.set_column_width(1, 30)
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+      assert byte_size(content) > 0
+    end
+  end
 end

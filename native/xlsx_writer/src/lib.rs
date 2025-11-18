@@ -1,4 +1,4 @@
-use rust_xlsxwriter::{ExcelDateTime, Format, FormatAlign, Image, Workbook, Worksheet, XlsxError, Formula};
+use rust_xlsxwriter::{ExcelDateTime, Format, FormatAlign, Image, Workbook, Worksheet, XlsxError, Formula, Url};
 use rustler::{Binary, NifTaggedEnum};
 
 #[derive(NifTaggedEnum, PartialEq)]
@@ -27,6 +27,13 @@ enum CellData<'a> {
     Date(String),
     DateTime(String),
     Formula(String),
+    Boolean(bool),
+    BooleanWithFormat(bool, Vec<CellFormat>),
+    Url(String),
+    UrlWithText(String, String),
+    UrlWithFormat(String, Vec<CellFormat>),
+    UrlWithTextAndFormat(String, String, Vec<CellFormat>),
+    Blank(Vec<CellFormat>),
 }
 
 #[derive(NifTaggedEnum)]
@@ -98,6 +105,34 @@ fn write_data<'a, 'b>(
             }
         },
         CellData::Formula(val) => worksheet.write(row, col, Formula::new(val)),
+        CellData::Boolean(val) => worksheet.write_boolean(row, col, val),
+        CellData::BooleanWithFormat(val, formats) => {
+            let format = apply_formats(Format::new(), &formats);
+            worksheet.write_boolean_with_format(row, col, val, &format)
+        }
+        CellData::Url(url) => {
+            let url_obj = Url::new(&url);
+            worksheet.write_url(row, col, &url_obj)
+        }
+        CellData::UrlWithText(url, text) => {
+            let url_obj = Url::new(&url);
+            worksheet.write_url_with_text(row, col, &url_obj, &text)
+        }
+        CellData::UrlWithFormat(url, formats) => {
+            let format = apply_formats(Format::new(), &formats);
+            let url_obj = Url::new(&url);
+            worksheet.write_url_with_format(row, col, &url_obj, &format)
+        }
+        CellData::UrlWithTextAndFormat(url, text, formats) => {
+            let format = apply_formats(Format::new(), &formats);
+            let url_obj = Url::new(&url);
+            worksheet.write_url_with_text(row, col, &url_obj, &text)?;
+            worksheet.write_with_format(row, col, &text, &format)
+        }
+        CellData::Blank(formats) => {
+            let format = apply_formats(Format::new(), &formats);
+            worksheet.write_blank(row, col, &format)
+        }
         CellData::ImagePath(val) => match Image::new(val) {
             Err(e) => return Err(e),
             Ok(image) => worksheet.insert_image(row, col, &image),

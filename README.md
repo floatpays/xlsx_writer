@@ -12,6 +12,8 @@ A high-performance Elixir library for creating Excel (.xlsx) spreadsheets. Built
 - 🖼️ **Images**: Embed images directly into spreadsheets
 - 📐 **Layout control**: Set column widths, row heights, and cell dimensions
 - 🧮 **Formulas**: Write Excel formulas and functions
+- 🔗 **Hyperlinks**: Create clickable URLs with custom display text
+- ✅ **Booleans**: Native Excel TRUE/FALSE values
 - 📄 **Multiple sheets**: Create workbooks with multiple worksheets
 - 🔧 **Simple API**: Clean, pipe-friendly Elixir interface
 
@@ -23,8 +25,10 @@ sheet =
   XlsxWriter.new_sheet("Sales Data")
   |> XlsxWriter.write(0, 0, "Product", format: [:bold])
   |> XlsxWriter.write(0, 1, "Sales", format: [:bold])
+  |> XlsxWriter.write(0, 2, "In Stock", format: [:bold])
   |> XlsxWriter.write(1, 0, "Widget A")
   |> XlsxWriter.write(1, 1, 1500.50, format: [{:num_format, "$#,##0.00"}])
+  |> XlsxWriter.write_boolean(1, 2, true)
 
 {:ok, content} = XlsxWriter.generate([sheet])
 
@@ -76,24 +80,68 @@ sheet =
   |> XlsxWriter.write(0, 0, "Bold Text", format: [:bold])
   |> XlsxWriter.write(0, 1, "Centered", format: [{:align, :center}])
   |> XlsxWriter.write(0, 2, "Right Aligned", format: [{:align, :right}])
-  
+
   # Numbers and decimals
   |> XlsxWriter.write(1, 0, 42)
   |> XlsxWriter.write(1, 1, 3.14159)
   |> XlsxWriter.write(1, 2, Decimal.new("99.99"))
-  
+
   # Date and time
   |> XlsxWriter.write(2, 0, Date.utc_today())
   |> XlsxWriter.write(2, 1, DateTime.utc_now())
   |> XlsxWriter.write(2, 2, NaiveDateTime.utc_now())
-  
-  # Formulas
-  |> XlsxWriter.write_formula(3, 0, "=B2 * 2")
-  |> XlsxWriter.write_formula(3, 1, "=PI()")
-  |> XlsxWriter.write_formula(3, 2, "=TODAY()")
 
-{:ok, content} = Workbook.generate([sheet])
+  # Booleans
+  |> XlsxWriter.write_boolean(3, 0, true)
+  |> XlsxWriter.write_boolean(3, 1, false)
+  |> XlsxWriter.write_boolean(3, 2, true, format: [:bold])
+
+  # URLs and hyperlinks
+  |> XlsxWriter.write_url(4, 0, "https://elixir-lang.org")
+  |> XlsxWriter.write_url(4, 1, "https://hexdocs.pm", text: "Hex Docs")
+  |> XlsxWriter.write_url(4, 2, "https://github.com", format: [:bold])
+
+  # Formulas
+  |> XlsxWriter.write_formula(5, 0, "=B2 * 2")
+  |> XlsxWriter.write_formula(5, 1, "=PI()")
+  |> XlsxWriter.write_formula(5, 2, "=TODAY()")
+
+  # Blank cells with formatting (useful for templates)
+  |> XlsxWriter.write_blank(6, 0, format: [{:align, :center}])
+
+{:ok, content} = XlsxWriter.generate([sheet])
 File.write!("data_types.xlsx", content)
+```
+
+### Booleans and URLs
+
+Write native Excel boolean values and clickable hyperlinks:
+
+```elixir
+sheet =
+  XlsxWriter.new_sheet("Links and Booleans")
+  # Boolean values
+  |> XlsxWriter.write(0, 0, "Active")
+  |> XlsxWriter.write_boolean(0, 1, true)
+  |> XlsxWriter.write(1, 0, "Disabled")
+  |> XlsxWriter.write_boolean(1, 1, false, format: [:bold, {:align, :center}])
+
+  # Hyperlinks
+  |> XlsxWriter.write(2, 0, "Website")
+  |> XlsxWriter.write_url(2, 1, "https://example.com")
+
+  # URL with custom display text
+  |> XlsxWriter.write(3, 0, "Documentation")
+  |> XlsxWriter.write_url(3, 1, "https://hexdocs.pm/xlsx_writer", text: "View Docs")
+
+  # URL with formatting
+  |> XlsxWriter.write(4, 0, "GitHub")
+  |> XlsxWriter.write_url(4, 1, "https://github.com/floatpays/xlsx_writer",
+      text: "Source Code",
+      format: [:bold, {:align, :center}])
+
+{:ok, content} = XlsxWriter.generate([sheet])
+File.write!("links_and_booleans.xlsx", content)
 ```
 
 ### Number Formatting
