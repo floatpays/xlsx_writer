@@ -39,6 +39,26 @@ sheet =
 File.write!("sales.xlsx", content)
 ```
 
+## Comprehensive Demo
+
+Want to see all features in action? Run the comprehensive demo script that showcases every XlsxWriter capability:
+
+```bash
+mix run examples/comprehensive_demo.exs
+```
+
+This generates `comprehensive_demo.xlsx` with 8 sheets demonstrating:
+- All data types (strings, numbers, dates, booleans, formulas, URLs)
+- Font formatting (colors, sizes, styles, families, super/subscript)
+- Cell borders (all 13 styles, colored, per-side)
+- Background colors and fill patterns
+- Text alignment and number formats
+- Layout features (freeze panes, autofilter, hidden rows/columns, range operations)
+- Merged cells
+- A complete invoice example
+
+Perfect for learning the library or as a reference!
+
 ## Detailed Usage
 
 ```elixir
