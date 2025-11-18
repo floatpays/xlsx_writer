@@ -286,6 +286,97 @@ defmodule XlsxWriterTest do
     end
   end
 
+  describe "cell borders" do
+    test "generates valid xlsx with basic borders" do
+      sheet =
+        XlsxWriter.new_sheet("Borders")
+        # All sides border
+        |> XlsxWriter.write(0, 0, "Thin Border", format: [{:border, :thin}])
+        |> XlsxWriter.write(0, 1, "Medium Border", format: [{:border, :medium}])
+        |> XlsxWriter.write(0, 2, "Thick Border", format: [{:border, :thick}])
+
+        # Individual side borders
+        |> XlsxWriter.write(1, 0, "Top", format: [{:border_top, :thin}])
+        |> XlsxWriter.write(1, 1, "Bottom", format: [{:border_bottom, :medium}])
+        |> XlsxWriter.write(1, 2, "Left", format: [{:border_left, :thick}])
+        |> XlsxWriter.write(1, 3, "Right", format: [{:border_right, :thin}])
+
+        # Border styles
+        |> XlsxWriter.write(2, 0, "Dashed", format: [{:border, :dashed}])
+        |> XlsxWriter.write(2, 1, "Dotted", format: [{:border, :dotted}])
+        |> XlsxWriter.write(2, 2, "Double", format: [{:border, :double}])
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+
+    test "generates valid xlsx with colored borders" do
+      sheet =
+        XlsxWriter.new_sheet("Colored Borders")
+        # All borders with color
+        |> XlsxWriter.write(0, 0, "Red Border",
+            format: [{:border, :thin}, {:border_color, "#FF0000"}])
+        |> XlsxWriter.write(0, 1, "Blue Border",
+            format: [{:border, :medium}, {:border_color, "#0000FF"}])
+
+        # Individual side colors
+        |> XlsxWriter.write(1, 0, "Multi-colored",
+            format: [
+              {:border_top, :thin},
+              {:border_top_color, "#FF0000"},
+              {:border_bottom, :thin},
+              {:border_bottom_color, "#00FF00"},
+              {:border_left, :thin},
+              {:border_left_color, "#0000FF"},
+              {:border_right, :thin},
+              {:border_right_color, "#FFFF00"}
+            ])
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+
+    test "generates valid xlsx with borders and other formatting" do
+      sheet =
+        XlsxWriter.new_sheet("Combined Formatting")
+        # Borders with background colors
+        |> XlsxWriter.write(0, 0, "Header 1",
+            format: [:bold, {:border, :thick}, {:bg_color, "#4472C4"}, {:align, :center}])
+        |> XlsxWriter.write(0, 1, "Header 2",
+            format: [:bold, {:border, :thick}, {:bg_color, "#4472C4"}, {:align, :center}])
+
+        # Borders with font formatting
+        |> XlsxWriter.write(1, 0, "Bold Red",
+            format: [:bold, {:font_color, "#FF0000"}, {:border, :thin}])
+        |> XlsxWriter.write(1, 1, 100,
+            format: [{:num_format, "$#,##0.00"}, {:border_bottom, :double}])
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+
+    test "generates valid xlsx with all border styles" do
+      sheet =
+        XlsxWriter.new_sheet("All Border Styles")
+        |> XlsxWriter.write(0, 0, "Thin", format: [{:border, :thin}])
+        |> XlsxWriter.write(1, 0, "Medium", format: [{:border, :medium}])
+        |> XlsxWriter.write(2, 0, "Thick", format: [{:border, :thick}])
+        |> XlsxWriter.write(3, 0, "Dashed", format: [{:border, :dashed}])
+        |> XlsxWriter.write(4, 0, "Dotted", format: [{:border, :dotted}])
+        |> XlsxWriter.write(5, 0, "Double", format: [{:border, :double}])
+        |> XlsxWriter.write(6, 0, "Hair", format: [{:border, :hair}])
+        |> XlsxWriter.write(7, 0, "Medium Dashed", format: [{:border, :medium_dashed}])
+        |> XlsxWriter.write(8, 0, "Dash Dot", format: [{:border, :dash_dot}])
+        |> XlsxWriter.write(9, 0, "Medium Dash Dot", format: [{:border, :medium_dash_dot}])
+        |> XlsxWriter.write(10, 0, "Dash Dot Dot", format: [{:border, :dash_dot_dot}])
+        |> XlsxWriter.write(11, 0, "Medium Dash Dot Dot", format: [{:border, :medium_dash_dot_dot}])
+        |> XlsxWriter.write(12, 0, "Slant Dash Dot", format: [{:border, :slant_dash_dot}])
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+  end
+
   describe "phase 1 features integration" do
     test "generates xlsx with all phase 1 features combined" do
       sheet =

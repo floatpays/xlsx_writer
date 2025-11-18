@@ -1,4 +1,4 @@
-use rust_xlsxwriter::{Color, ExcelDateTime, Format, FormatAlign, FormatPattern, FormatScript, FormatUnderline, Image, Workbook, Worksheet, XlsxError, Formula, Url};
+use rust_xlsxwriter::{Color, ExcelDateTime, Format, FormatAlign, FormatBorder, FormatPattern, FormatScript, FormatUnderline, Image, Workbook, Worksheet, XlsxError, Formula, Url};
 use rustler::{Binary, NifTaggedEnum};
 
 #[derive(NifTaggedEnum, PartialEq)]
@@ -25,6 +25,23 @@ enum UnderlineStyle {
 }
 
 #[derive(NifTaggedEnum, PartialEq)]
+enum BorderStyle {
+    Thin,
+    Medium,
+    Thick,
+    Dashed,
+    Dotted,
+    Double,
+    Hair,
+    MediumDashed,
+    DashDot,
+    MediumDashDot,
+    DashDotDot,
+    MediumDashDotDot,
+    SlantDashDot,
+}
+
+#[derive(NifTaggedEnum, PartialEq)]
 enum CellFormat {
     Bold,
     Align(CellAlignPos),
@@ -40,6 +57,16 @@ enum CellFormat {
     FontName(String),
     Superscript,
     Subscript,
+    Border(BorderStyle),
+    BorderTop(BorderStyle),
+    BorderBottom(BorderStyle),
+    BorderLeft(BorderStyle),
+    BorderRight(BorderStyle),
+    BorderColor(String),
+    BorderTopColor(String),
+    BorderBottomColor(String),
+    BorderLeftColor(String),
+    BorderRightColor(String),
 }
 
 #[derive(NifTaggedEnum)]
@@ -280,9 +307,92 @@ fn apply_formats(mut format: Format, formats: &[CellFormat]) -> Format {
             CellFormat::FontName(name) => format.set_font_name(name),
             CellFormat::Superscript => format.set_font_script(FormatScript::Superscript),
             CellFormat::Subscript => format.set_font_script(FormatScript::Subscript),
+            CellFormat::Border(style) => {
+                let border_style = convert_border_style(style);
+                format.set_border(border_style)
+            },
+            CellFormat::BorderTop(style) => {
+                let border_style = convert_border_style(style);
+                format.set_border_top(border_style)
+            },
+            CellFormat::BorderBottom(style) => {
+                let border_style = convert_border_style(style);
+                format.set_border_bottom(border_style)
+            },
+            CellFormat::BorderLeft(style) => {
+                let border_style = convert_border_style(style);
+                format.set_border_left(border_style)
+            },
+            CellFormat::BorderRight(style) => {
+                let border_style = convert_border_style(style);
+                format.set_border_right(border_style)
+            },
+            CellFormat::BorderColor(color_hex) => {
+                let hex_str = color_hex.trim_start_matches('#');
+                if let Ok(rgb) = u32::from_str_radix(hex_str, 16) {
+                    let color = Color::from(rgb);
+                    format.set_border_color(color)
+                } else {
+                    format
+                }
+            },
+            CellFormat::BorderTopColor(color_hex) => {
+                let hex_str = color_hex.trim_start_matches('#');
+                if let Ok(rgb) = u32::from_str_radix(hex_str, 16) {
+                    let color = Color::from(rgb);
+                    format.set_border_top_color(color)
+                } else {
+                    format
+                }
+            },
+            CellFormat::BorderBottomColor(color_hex) => {
+                let hex_str = color_hex.trim_start_matches('#');
+                if let Ok(rgb) = u32::from_str_radix(hex_str, 16) {
+                    let color = Color::from(rgb);
+                    format.set_border_bottom_color(color)
+                } else {
+                    format
+                }
+            },
+            CellFormat::BorderLeftColor(color_hex) => {
+                let hex_str = color_hex.trim_start_matches('#');
+                if let Ok(rgb) = u32::from_str_radix(hex_str, 16) {
+                    let color = Color::from(rgb);
+                    format.set_border_left_color(color)
+                } else {
+                    format
+                }
+            },
+            CellFormat::BorderRightColor(color_hex) => {
+                let hex_str = color_hex.trim_start_matches('#');
+                if let Ok(rgb) = u32::from_str_radix(hex_str, 16) {
+                    let color = Color::from(rgb);
+                    format.set_border_right_color(color)
+                } else {
+                    format
+                }
+            },
         };
     }
     return format;
+}
+
+fn convert_border_style(style: &BorderStyle) -> FormatBorder {
+    match style {
+        BorderStyle::Thin => FormatBorder::Thin,
+        BorderStyle::Medium => FormatBorder::Medium,
+        BorderStyle::Thick => FormatBorder::Thick,
+        BorderStyle::Dashed => FormatBorder::Dashed,
+        BorderStyle::Dotted => FormatBorder::Dotted,
+        BorderStyle::Double => FormatBorder::Double,
+        BorderStyle::Hair => FormatBorder::Hair,
+        BorderStyle::MediumDashed => FormatBorder::MediumDashed,
+        BorderStyle::DashDot => FormatBorder::DashDot,
+        BorderStyle::MediumDashDot => FormatBorder::MediumDashDot,
+        BorderStyle::DashDotDot => FormatBorder::DashDotDot,
+        BorderStyle::MediumDashDotDot => FormatBorder::MediumDashDotDot,
+        BorderStyle::SlantDashDot => FormatBorder::SlantDashDot,
+    }
 }
 
 rustler::init!("Elixir.XlsxWriter.RustXlsxWriter");

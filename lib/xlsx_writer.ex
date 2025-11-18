@@ -185,6 +185,22 @@ defmodule XlsxWriter do
     - `{:font_name, name}` - Font family (e.g., "Arial", "Times New Roman")
     - `{:underline, :single | :double | :single_accounting | :double_accounting}` - Underline style
     - `{:pattern, :solid | :none | :gray125 | :gray0625}` - Fill pattern
+    - `{:border, style}` - Apply border to all sides (see border styles below)
+    - `{:border_top, style}` - Top border
+    - `{:border_bottom, style}` - Bottom border
+    - `{:border_left, style}` - Left border
+    - `{:border_right, style}` - Right border
+    - `{:border_color, hex_color}` - Color for all borders
+    - `{:border_top_color, hex_color}` - Top border color
+    - `{:border_bottom_color, hex_color}` - Bottom border color
+    - `{:border_left_color, hex_color}` - Left border color
+    - `{:border_right_color, hex_color}` - Right border color
+
+  ## Border Styles
+
+  Available border styles: `:thin`, `:medium`, `:thick`, `:dashed`, `:dotted`, `:double`,
+  `:hair`, `:medium_dashed`, `:dash_dot`, `:medium_dash_dot`, `:dash_dot_dot`,
+  `:medium_dash_dot_dot`, `:slant_dash_dot`
 
   ## Returns
 
@@ -207,6 +223,10 @@ defmodule XlsxWriter do
       iex> sheet = XlsxWriter.new_sheet("Test")
       iex> sheet = XlsxWriter.write(sheet, 0, 0, "Red Italic", format: [:italic, {:font_color, "#FF0000"}])
       iex> {"Test", [{:write, 0, 0, {:string_with_format, "Red Italic", [:italic, {:font_color, "#FF0000"}]}}]} = sheet
+
+      iex> sheet = XlsxWriter.new_sheet("Test")
+      iex> sheet = XlsxWriter.write(sheet, 0, 0, "Bordered", format: [{:border, :thin}])
+      iex> {"Test", [{:write, 0, 0, {:string_with_format, "Bordered", [{:border, :thin}]}}]} = sheet
 
   """
   def write({name, instructions}, row, col, val, opts \\ []) do

@@ -17,6 +17,11 @@
   - Font families via `{:font_name, name}` - use custom fonts (Arial, Courier, etc.)
   - Text position via `:superscript`, `:subscript` - create scientific notation and chemical formulas
   - Underline styles via `{:underline, style}` - single, double, accounting underlines
+- Add comprehensive cell border support:
+  - All-sides borders via `{:border, style}` - apply same border to all sides
+  - Individual borders via `{:border_top, style}`, `{:border_bottom, style}`, `{:border_left, style}`, `{:border_right, style}` - control each side independently
+  - Border colors via `{:border_color, hex_color}` and side-specific colors - customize border colors per side
+  - 13 border styles: `:thin`, `:medium`, `:thick`, `:dashed`, `:dotted`, `:double`, `:hair`, `:medium_dashed`, `:dash_dot`, `:medium_dash_dot`, `:dash_dot_dot`, `:medium_dash_dot_dot`, `:slant_dash_dot`
 
 # v0.6.0
 

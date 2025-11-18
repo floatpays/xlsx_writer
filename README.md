@@ -8,7 +8,8 @@ A high-performance Elixir library for creating Excel (.xlsx) spreadsheets. Built
 
 - ⚡ **Fast**: Leverages Rust for high-performance spreadsheet generation
 - 🧠 **Memory efficient**: Handles large datasets without excessive memory usage
-- 📊 **Rich formatting**: Support for fonts, background colors, alignment, number formats, and more
+- 📊 **Rich formatting**: Support for fonts, colors, borders, alignment, number formats, and more
+- 🎨 **Cell borders**: Apply borders with 13 styles and customizable colors per side
 - 🖼️ **Images**: Embed images directly into spreadsheets
 - 📐 **Layout control**: Set column widths, row heights, freeze panes, hide rows/columns
 - 🧮 **Formulas**: Write Excel formulas and functions
@@ -156,6 +157,55 @@ File.write!("typography.xlsx", content)
 ```
 
 Available underline styles: `:single`, `:double`, `:single_accounting`, `:double_accounting`
+
+### Cell Borders
+
+Add professional-looking borders to cells with various styles and colors:
+
+```elixir
+sheet =
+  XlsxWriter.new_sheet("Invoice")
+  # Headers with thick borders and background
+  |> XlsxWriter.write(0, 0, "Item",
+      format: [:bold, {:border, :thick}, {:bg_color, "#4472C4"}, {:align, :center}])
+  |> XlsxWriter.write(0, 1, "Quantity",
+      format: [:bold, {:border, :thick}, {:bg_color, "#4472C4"}, {:align, :center}])
+  |> XlsxWriter.write(0, 2, "Price",
+      format: [:bold, {:border, :thick}, {:bg_color, "#4472C4"}, {:align, :center}])
+  |> XlsxWriter.write(0, 3, "Total",
+      format: [:bold, {:border, :thick}, {:bg_color, "#4472C4"}, {:align, :center}])
+
+  # Data rows with thin borders
+  |> XlsxWriter.write(1, 0, "Widget A", format: [{:border, :thin}])
+  |> XlsxWriter.write(1, 1, 10, format: [{:border, :thin}])
+  |> XlsxWriter.write(1, 2, 99.99, format: [{:border, :thin}, {:num_format, "$#,##0.00"}])
+  |> XlsxWriter.write_formula(1, 3, "=B2*C2")
+  |> XlsxWriter.write(1, 3, nil, format: [{:border, :thin}, {:num_format, "$#,##0.00"}])
+
+  # Total row with double bottom border
+  |> XlsxWriter.write(2, 2, "Total:", format: [:bold, {:border_right, :thin}])
+  |> XlsxWriter.write_formula(2, 3, "=D2")
+  |> XlsxWriter.write(2, 3, nil,
+      format: [:bold, {:border_bottom, :double}, {:num_format, "$#,##0.00"}])
+
+  # Colored borders for emphasis
+  |> XlsxWriter.write(4, 0, "Important Note",
+      format: [{:border, :medium}, {:border_color, "#FF0000"}])
+
+  # Multi-colored borders (different color per side)
+  |> XlsxWriter.write(5, 0, "Rainbow Border",
+      format: [
+        {:border_top, :thin}, {:border_top_color, "#FF0000"},
+        {:border_right, :thin}, {:border_right_color, "#00FF00"},
+        {:border_bottom, :thin}, {:border_bottom_color, "#0000FF"},
+        {:border_left, :thin}, {:border_left_color, "#FFFF00"}
+      ])
+
+{:ok, content} = XlsxWriter.generate([sheet])
+File.write!("invoice.xlsx", content)
+```
+
+Available border styles: `:thin`, `:medium`, `:thick`, `:dashed`, `:dotted`, `:double`, `:hair`, `:medium_dashed`, `:dash_dot`, `:medium_dash_dot`, `:dash_dot_dot`, `:medium_dash_dot_dot`, `:slant_dash_dot`
 
 ### Cell Background Colors
 
@@ -386,6 +436,16 @@ XlsxWriter supports extensive cell formatting through the `format:` parameter. C
 | **Text Position** | `:superscript` | `format: [:superscript]` |
 | | `:subscript` | `format: [:subscript]` |
 | **Background** | `{:bg_color, hex}` | `format: [{:bg_color, "#FFFF00"}]` |
+| **Borders** | `{:border, style}` | `format: [{:border, :thin}]` |
+| | `{:border_top, style}` | `format: [{:border_top, :thick}]` |
+| | `{:border_bottom, style}` | `format: [{:border_bottom, :double}]` |
+| | `{:border_left, style}` | `format: [{:border_left, :dashed}]` |
+| | `{:border_right, style}` | `format: [{:border_right, :dotted}]` |
+| **Border Colors** | `{:border_color, hex}` | `format: [{:border_color, "#000000"}]` |
+| | `{:border_top_color, hex}` | `format: [{:border_top_color, "#FF0000"}]` |
+| | `{:border_bottom_color, hex}` | `format: [{:border_bottom_color, "#00FF00"}]` |
+| | `{:border_left_color, hex}` | `format: [{:border_left_color, "#0000FF"}]` |
+| | `{:border_right_color, hex}` | `format: [{:border_right_color, "#FFFF00"}]` |
 | **Alignment** | `{:align, :left}` | `format: [{:align, :left}]` |
 | | `{:align, :center}` | `format: [{:align, :center}]` |
 | | `{:align, :right}` | `format: [{:align, :right}]` |
@@ -402,7 +462,7 @@ XlsxWriter supports extensive cell formatting through the `format:` parameter. C
 | `"mm/dd/yyyy"` | Date format | `12/25/2023` |
 | `"h:mm AM/PM"` | Time format | `2:30 PM` |
 
-> **Note**: XlsxWriter implements comprehensive formatting including fonts, colors, alignment, and number formats. Additional formatting features like borders and cell patterns may be added in future releases.
+> **Note**: XlsxWriter implements comprehensive formatting including fonts, colors, borders, alignment, and number formats. Additional formatting features may be added in future releases based on user demand.
 
 ## Installation
 
