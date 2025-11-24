@@ -2,7 +2,7 @@ defmodule XlsxWriter.MixProject do
   use Mix.Project
 
   @github_url "https://github.com/floatpays/xlsx_writer"
-  @version "0.7.0"
+  @version "0.7.1"
 
   def project do
     [
@@ -71,7 +71,7 @@ defmodule XlsxWriter.MixProject do
         "guides/layout_features.md"
       ],
       groups_for_extras: [
-        "Guides": ~r/guides\/.*/
+        Guides: ~r/guides\/.*/
       ]
     ]
   end
