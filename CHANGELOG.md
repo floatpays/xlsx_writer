@@ -1,3 +1,9 @@
+# v0.7.2
+
+## improvements
+
+- Update rustler dependency from 0.37.0 to 0.37.2
+
 # v0.7.0
 
 ## new features
