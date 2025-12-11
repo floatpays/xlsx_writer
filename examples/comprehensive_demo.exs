@@ -252,8 +252,69 @@ invoice_sheet =
   |> XlsxWriter.set_column_width(3, 15)
   |> XlsxWriter.set_row_height(0, 40)
 
+# Sheet 9: Rich Text Formatting
+rich_text_sheet =
+  XlsxWriter.new_sheet("Rich Text")
+  |> XlsxWriter.write(0, 0, "Rich Text Examples", format: [:bold, {:font_size, 14}])
+  # Bold and normal text
+  |> XlsxWriter.write(2, 0, "Mixed Styles:")
+  |> XlsxWriter.write_rich_string(2, 1, [
+    {"Bold ", [:bold]},
+    {"Normal ", []},
+    {"Italic", [:italic]}
+  ])
+  # Colored text segments
+  |> XlsxWriter.write(3, 0, "Colors:")
+  |> XlsxWriter.write_rich_string(3, 1, [
+    {"Red ", [{:font_color, "#FF0000"}]},
+    {"Green ", [{:font_color, "#00FF00"}]},
+    {"Blue", [{:font_color, "#0000FF"}]}
+  ])
+  # Scientific notation
+  |> XlsxWriter.write(4, 0, "Superscript:")
+  |> XlsxWriter.write_rich_string(4, 1, [
+    {"E=mc", []},
+    {"2", [:superscript]}
+  ])
+  # Chemical formulas
+  |> XlsxWriter.write(5, 0, "Subscript:")
+  |> XlsxWriter.write_rich_string(5, 1, [
+    {"H", []},
+    {"2", [:subscript]},
+    {"O", []}
+  ])
+  # Complex formatting
+  |> XlsxWriter.write(6, 0, "Complex:")
+  |> XlsxWriter.write_rich_string(6, 1, [
+    {"Bold Red ", [:bold, {:font_color, "#FF0000"}]},
+    {"Large ", [{:font_size, 16}]},
+    {"Underlined", [{:underline, :single}]}
+  ])
+  # With cell-level formatting
+  |> XlsxWriter.write(7, 0, "Cell format:")
+  |> XlsxWriter.write_rich_string(7, 1, [
+    {"Important: ", [:bold]},
+    {"Read carefully", [:italic]}
+  ], format: [{:align, :center}, {:bg_color, "#FFFF00"}])
+  # Font sizes
+  |> XlsxWriter.write(8, 0, "Font sizes:")
+  |> XlsxWriter.write_rich_string(8, 1, [
+    {"Small ", [{:font_size, 10}]},
+    {"Medium ", [{:font_size, 14}]},
+    {"Large", [{:font_size, 18}]}
+  ])
+  # Strikethrough example
+  |> XlsxWriter.write(9, 0, "Strikethrough:")
+  |> XlsxWriter.write_rich_string(9, 1, [
+    {"Original Price: ", []},
+    {"$99.99", [:strikethrough]},
+    {" Now: $49.99", [:bold, {:font_color, "#FF0000"}]}
+  ])
+  |> XlsxWriter.set_column_width(0, 15)
+  |> XlsxWriter.set_column_width(1, 40)
+
 # Generate the workbook
-# Sheet 9: Comments/Notes
+# Sheet 10: Comments/Notes
 comments_sheet =
   XlsxWriter.new_sheet("Comments")
   |> XlsxWriter.write(0, 0, "Cell Comments Demo", format: [:bold, {:font_size, 14}])
@@ -298,6 +359,7 @@ comments_sheet =
   layout_sheet,
   merged_sheet,
   invoice_sheet,
+  rich_text_sheet,
   comments_sheet
 ])
 
@@ -316,5 +378,6 @@ IO.puts("  • Text alignment and number formats")
 IO.puts("  • Layout features (freeze panes, autofilter, hidden rows/columns)")
 IO.puts("  • Range operations for bulk sizing")
 IO.puts("  • Merged cells")
+IO.puts("  • Rich text formatting (mixed styles in single cells)")
 IO.puts("  • Cell comments/notes")
 IO.puts("  • A complete invoice example")

@@ -42,6 +42,74 @@ File.write!("typography.xlsx", content)
 
 **Available underline styles:** `:single`, `:double`, `:single_accounting`, `:double_accounting`
 
+## Rich Text Formatting
+
+Apply different formatting to different parts of text within a single cell using rich strings:
+
+```elixir
+sheet = XlsxWriter.new_sheet("Rich Text")
+  # Bold and normal text in the same cell
+  |> XlsxWriter.write_rich_string(0, 0, [
+    {"Bold ", [:bold]},
+    {"Normal ", []},
+    {"Italic", [:italic]}
+  ])
+
+  # Colored text segments
+  |> XlsxWriter.write_rich_string(1, 0, [
+    {"Red ", [{:font_color, "#FF0000"}]},
+    {"Green ", [{:font_color, "#00FF00"}]},
+    {"Blue", [{:font_color, "#0000FF"}]}
+  ])
+
+  # Multiple format options per segment
+  |> XlsxWriter.write_rich_string(2, 0, [
+    {"Bold Red ", [:bold, {:font_color, "#FF0000"}]},
+    {"Large ", [{:font_size, 16}]},
+    {"Underlined", [{:underline, :single}]}
+  ])
+
+  # Scientific notation with proper formatting
+  |> XlsxWriter.write_rich_string(3, 0, [
+    {"E=mc", []},
+    {"2", [:superscript]}
+  ])
+
+  # Chemical formulas
+  |> XlsxWriter.write_rich_string(4, 0, [
+    {"H", []},
+    {"2", [:subscript]},
+    {"O", []}
+  ])
+
+  # With cell-level formatting (centered with background)
+  |> XlsxWriter.write_rich_string(5, 0, [
+    {"Important: ", [:bold]},
+    {"Read carefully", [:italic]}
+  ], format: [{:align, :center}, {:bg_color, "#FFFF00"}])
+
+{:ok, content} = XlsxWriter.generate([sheet])
+File.write!("rich_text.xlsx", content)
+```
+
+### Rich String Segment Format Options
+
+Each segment in a rich string can have these text formatting options:
+
+| Option | Example |
+|--------|---------|
+| `:bold` | `{"Bold text", [:bold]}` |
+| `:italic` | `{"Italic text", [:italic]}` |
+| `:strikethrough` | `{"Struck text", [:strikethrough]}` |
+| `:superscript` | `{"2", [:superscript]}` |
+| `:subscript` | `{"2", [:subscript]}` |
+| `{:font_color, hex}` | `{"Red", [{:font_color, "#FF0000"}]}` |
+| `{:font_size, points}` | `{"Large", [{:font_size, 18}]}` |
+| `{:font_name, name}` | `{"Arial", [{:font_name, "Arial"}]}` |
+| `{:underline, style}` | `{"Underlined", [{:underline, :single}]}` |
+
+The optional `format:` option applies cell-level formatting (alignment, borders, background) to the entire cell.
+
 ## Cell Borders
 
 Add professional-looking borders to cells with various styles and colors:

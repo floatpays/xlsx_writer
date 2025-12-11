@@ -380,6 +380,83 @@ defmodule XlsxWriter do
   end
 
   @doc """
+  Writes a rich text string to a specific cell in the sheet.
+
+  A rich string allows different formatting for different parts of the text
+  within a single cell. Each segment consists of text and optional formatting.
+
+  ## Parameters
+
+  - `sheet` - The sheet tuple `{name, instructions}`
+  - `row` - The row index (0-based)
+  - `col` - The column index (0-based)
+  - `segments` - A list of `{text, formats}` tuples, where:
+    - `text` is a string
+    - `formats` is a list of format options (can be empty `[]` for default formatting)
+  - `opts` - Optional keyword list with:
+    - `:format` - Cell-level formatting (alignment, borders, background, etc.)
+
+  ## Segment Format Options
+
+  Each segment can have text formatting options:
+  - `:bold` - Make text bold
+  - `:italic` - Make text italic
+  - `:strikethrough` - Strike through text
+  - `:superscript` - Superscript text
+  - `:subscript` - Subscript text
+  - `{:font_color, hex_color}` - Font color (e.g., "#FF0000" for red)
+  - `{:font_size, size}` - Font size in points
+  - `{:font_name, name}` - Font family
+  - `{:underline, style}` - Underline style
+
+  ## Returns
+
+  Updated sheet tuple with the new rich string instruction.
+
+  ## Examples
+
+      # Simple bold and normal text
+      iex> sheet = XlsxWriter.new_sheet("Test")
+      iex> sheet = XlsxWriter.write_rich_string(sheet, 0, 0, [
+      ...>   {"Bold ", [:bold]},
+      ...>   {"Normal", []}
+      ...> ])
+      iex> {"Test", [{:write, 0, 0, {:rich_string, [{"Bold ", [:bold]}, {"Normal", []}]}}]} = sheet
+
+      # Colored text segments
+      iex> sheet = XlsxWriter.new_sheet("Test")
+      iex> sheet = XlsxWriter.write_rich_string(sheet, 0, 0, [
+      ...>   {"Red ", [{:font_color, "#FF0000"}]},
+      ...>   {"Blue", [{:font_color, "#0000FF"}]}
+      ...> ])
+      iex> {"Test", [{:write, 0, 0, {:rich_string, [{"Red ", [{:font_color, "#FF0000"}]}, {"Blue", [{:font_color, "#0000FF"}]}]}}]} = sheet
+
+      # With cell-level formatting (centered)
+      iex> sheet = XlsxWriter.new_sheet("Test")
+      iex> sheet = XlsxWriter.write_rich_string(sheet, 0, 0, [
+      ...>   {"Bold ", [:bold]},
+      ...>   {"Italic", [:italic]}
+      ...> ], format: [{:align, :center}])
+      iex> {"Test", [{:write, 0, 0, {:rich_string_with_format, [{"Bold ", [:bold]}, {"Italic", [:italic]}], [{:align, :center}]}}]} = sheet
+
+  """
+  def write_rich_string({name, instructions}, row, col, segments, opts \\ []) do
+    Validation.validate_cell_position!(row, col)
+    Validation.validate_rich_string_segments!(segments)
+
+    case Keyword.get(opts, :format) do
+      nil ->
+        {name, [{:write, row, col, {:rich_string, segments}} | instructions]}
+
+      formats when is_list(formats) ->
+        Validation.validate_formats!(formats)
+
+        {name,
+         [{:write, row, col, {:rich_string_with_format, segments, formats}} | instructions]}
+    end
+  end
+
+  @doc """
   Writes an image to a specific cell in the sheet.
 
   ## Parameters

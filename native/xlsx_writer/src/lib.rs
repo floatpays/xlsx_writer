@@ -96,6 +96,8 @@ enum CellData<'a> {
     UrlWithFormat(String, Vec<CellFormat>),
     UrlWithTextAndFormat(String, String, Vec<CellFormat>),
     Blank(Vec<CellFormat>),
+    RichString(Vec<(String, Vec<CellFormat>)>),
+    RichStringWithFormat(Vec<(String, Vec<CellFormat>)>, Vec<CellFormat>),
 }
 
 #[derive(NifTaggedEnum)]
@@ -348,6 +350,39 @@ fn write_data<'a, 'b>(
                 Ok(image) => worksheet.insert_image(row, col, &image),
             }
         }
+        CellData::RichString(segments) => {
+            write_rich_string_helper(worksheet, row, col, &segments, None)
+        }
+        CellData::RichStringWithFormat(segments, cell_formats) => {
+            let cell_format = apply_formats(Format::new(), &cell_formats);
+            write_rich_string_helper(worksheet, row, col, &segments, Some(cell_format))
+        }
+    }
+}
+
+fn write_rich_string_helper<'a>(
+    worksheet: &'a mut Worksheet,
+    row: u32,
+    col: u16,
+    segments: &[(String, Vec<CellFormat>)],
+    cell_format: Option<Format>,
+) -> Result<&'a mut Worksheet, XlsxError> {
+    // Build format objects for each segment
+    let segment_formats: Vec<Format> = segments
+        .iter()
+        .map(|(_, formats)| apply_formats(Format::new(), formats))
+        .collect();
+
+    // Build the segments array with references
+    let rich_segments: Vec<(&Format, &str)> = segments
+        .iter()
+        .zip(segment_formats.iter())
+        .map(|((text, _), format)| (format, text.as_str()))
+        .collect();
+
+    match cell_format {
+        Some(format) => worksheet.write_rich_string_with_format(row, col, &rich_segments, &format),
+        None => worksheet.write_rich_string(row, col, &rich_segments),
     }
 }
 

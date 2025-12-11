@@ -165,6 +165,63 @@ defmodule XlsxWriter.Validation do
     end
   end
 
+  @doc """
+  Validates rich string segments.
+
+  Each segment must be a tuple of `{text, formats}` where:
+  - `text` is a binary string
+  - `formats` is a list of format options
+
+  ## Parameters
+  - `segments` - List of segment tuples
+
+  ## Raises
+  - `ArgumentError` if segments is not a list
+  - `ArgumentError` if any segment is not a valid `{text, formats}` tuple
+
+  ## Examples
+
+      iex> XlsxWriter.Validation.validate_rich_string_segments!([{"Bold ", [:bold]}, {"Normal", []}])
+      :ok
+
+      iex> XlsxWriter.Validation.validate_rich_string_segments!([])
+      ** (ArgumentError) Rich string segments cannot be empty
+
+      iex> XlsxWriter.Validation.validate_rich_string_segments!("not a list")
+      ** (ArgumentError) Rich string segments must be a list, got: \"not a list\"
+
+  """
+  def validate_rich_string_segments!(segments) when is_list(segments) do
+    if segments == [] do
+      raise ArgumentError, "Rich string segments cannot be empty"
+    end
+
+    Enum.each(segments, fn segment ->
+      case segment do
+        {text, formats} when is_binary(text) and is_list(formats) ->
+          validate_formats!(formats)
+
+        {text, _formats} when not is_binary(text) ->
+          raise ArgumentError,
+                "Rich string segment text must be a string, got: #{inspect(text)}"
+
+        {_text, formats} when not is_list(formats) ->
+          raise ArgumentError,
+                "Rich string segment formats must be a list, got: #{inspect(formats)}"
+
+        other ->
+          raise ArgumentError,
+                "Rich string segment must be a {text, formats} tuple, got: #{inspect(other)}"
+      end
+    end)
+
+    :ok
+  end
+
+  def validate_rich_string_segments!(segments) do
+    raise ArgumentError, "Rich string segments must be a list, got: #{inspect(segments)}"
+  end
+
   # Private helpers
 
   defp validate_color_string!(value, _field) when is_binary(value), do: :ok

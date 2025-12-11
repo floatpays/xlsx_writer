@@ -880,6 +880,154 @@ defmodule XlsxWriterTest do
     end
   end
 
+  describe "write_rich_string/5" do
+    test "generates valid xlsx with basic rich string" do
+      sheet =
+        XlsxWriter.new_sheet("Rich String Test")
+        |> XlsxWriter.write_rich_string(0, 0, [
+          {"Bold ", [:bold]},
+          {"Normal ", []},
+          {"Italic", [:italic]}
+        ])
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+
+    test "generates valid xlsx with colored rich string segments" do
+      sheet =
+        XlsxWriter.new_sheet("Colored Rich String")
+        |> XlsxWriter.write_rich_string(0, 0, [
+          {"Red ", [{:font_color, "#FF0000"}]},
+          {"Green ", [{:font_color, "#00FF00"}]},
+          {"Blue", [{:font_color, "#0000FF"}]}
+        ])
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+
+    test "generates valid xlsx with rich string and cell-level formatting" do
+      sheet =
+        XlsxWriter.new_sheet("Rich String With Cell Format")
+        |> XlsxWriter.write_rich_string(
+          0,
+          0,
+          [
+            {"Bold ", [:bold]},
+            {"Italic", [:italic]}
+          ],
+          format: [{:align, :center}, {:bg_color, "#FFFF00"}]
+        )
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+
+    test "generates valid xlsx with multiple format options per segment" do
+      sheet =
+        XlsxWriter.new_sheet("Complex Rich String")
+        |> XlsxWriter.write_rich_string(0, 0, [
+          {"Bold Red ", [:bold, {:font_color, "#FF0000"}]},
+          {"Large ", [{:font_size, 16}]},
+          {"Underlined", [{:underline, :single}]}
+        ])
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+
+    test "generates valid xlsx with superscript and subscript in rich string" do
+      sheet =
+        XlsxWriter.new_sheet("Super Sub Script")
+        |> XlsxWriter.write_rich_string(0, 0, [
+          {"E=mc", []},
+          {"2", [:superscript]}
+        ])
+        |> XlsxWriter.write_rich_string(1, 0, [
+          {"H", []},
+          {"2", [:subscript]},
+          {"O", []}
+        ])
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+
+    test "raises error for empty segments list" do
+      assert_raise ArgumentError, ~r/Rich string segments cannot be empty/, fn ->
+        XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write_rich_string(0, 0, [])
+      end
+    end
+
+    test "raises error for non-list segments" do
+      assert_raise ArgumentError, ~r/Rich string segments must be a list/, fn ->
+        XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write_rich_string(0, 0, "not a list")
+      end
+    end
+
+    test "raises error for invalid segment tuple" do
+      assert_raise ArgumentError, ~r/Rich string segment must be a \{text, formats\} tuple/, fn ->
+        XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write_rich_string(0, 0, ["not a tuple"])
+      end
+    end
+
+    test "raises error for non-string text in segment" do
+      assert_raise ArgumentError, ~r/Rich string segment text must be a string/, fn ->
+        XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write_rich_string(0, 0, [{123, [:bold]}])
+      end
+    end
+
+    test "raises error for non-list formats in segment" do
+      assert_raise ArgumentError, ~r/Rich string segment formats must be a list/, fn ->
+        XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write_rich_string(0, 0, [{"text", :bold}])
+      end
+    end
+
+    test "validates color formats in segments" do
+      assert_raise XlsxWriter.Error, ~r/font_color.*expects a string hex color/, fn ->
+        XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write_rich_string(0, 0, [{"text", [{:font_color, true}]}])
+      end
+    end
+
+    test "creates correct instruction for rich string without cell format" do
+      sheet =
+        XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write_rich_string(0, 0, [
+          {"Bold ", [:bold]},
+          {"Normal", []}
+        ])
+
+      {"Test",
+       [{:write, 0, 0, {:rich_string, [{"Bold ", [:bold]}, {"Normal", []}]}}]} =
+        sheet
+    end
+
+    test "creates correct instruction for rich string with cell format" do
+      sheet =
+        XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write_rich_string(
+          0,
+          0,
+          [{"Bold ", [:bold]}, {"Italic", [:italic]}],
+          format: [{:align, :center}]
+        )
+
+      {"Test",
+       [
+         {:write, 0, 0,
+          {:rich_string_with_format, [{"Bold ", [:bold]}, {"Italic", [:italic]}],
+           [{:align, :center}]}}
+       ]} = sheet
+    end
+  end
+
   describe "phase 1 features integration" do
     test "generates xlsx with all phase 1 features combined" do
       sheet =

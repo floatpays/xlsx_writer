@@ -1,3 +1,12 @@
+# v0.8.0
+
+## new features
+
+- Add rich text formatting support via `write_rich_string/5` - apply different formatting to different parts of text within a single cell
+  - Each segment can have its own formatting (bold, italic, colors, font size, etc.)
+  - Supports cell-level formatting (alignment, borders, background) via the `format:` option
+  - Perfect for scientific notation (E=mc²), chemical formulas (H₂O), and mixed formatting in reports
+
 # v0.7.2
 
 ## improvements
