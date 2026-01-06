@@ -1,4 +1,4 @@
-# v0.8.0
+# v0.7.3
 
 ## new features
 
@@ -6,6 +6,10 @@
   - Each segment can have its own formatting (bold, italic, colors, font size, etc.)
   - Supports cell-level formatting (alignment, borders, background) via the `format:` option
   - Perfect for scientific notation (E=mc²), chemical formulas (H₂O), and mixed formatting in reports
+
+## improvements
+
+- Update Rust dependencies (bumpalo, libz-rs-sys, proc-macro2, quote)
 
 # v0.7.2
 
