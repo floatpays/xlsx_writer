@@ -1,3 +1,7 @@
+# v0.7.4
+
+- Update Rust dependencies
+
 # v0.7.3
 
 ## new features
