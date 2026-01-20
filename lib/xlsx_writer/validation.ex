@@ -219,7 +219,8 @@ defmodule XlsxWriter.Validation do
   end
 
   def validate_rich_string_segments!(segments) do
-    raise ArgumentError, "Rich string segments must be a list, got: #{inspect(segments)}"
+    raise ArgumentError,
+          "Rich string segments must be a list, got: #{inspect(segments)}"
   end
 
   # Private helpers

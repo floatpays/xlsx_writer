@@ -9,7 +9,9 @@ defmodule XlsxWriter.CommentTest do
         XlsxWriter.new_sheet("Test")
         |> XlsxWriter.write_comment(0, 0, "This is a comment")
 
-      assert {"Test", [{:insert_note, 0, 0, "This is a comment", options}]} = sheet
+      assert {"Test", [{:insert_note, 0, 0, "This is a comment", options}]} =
+               sheet
+
       assert %XlsxWriter.NoteOptions{} = options
       assert options.author == nil
       assert options.visible == nil
@@ -20,9 +22,13 @@ defmodule XlsxWriter.CommentTest do
     test "adds comment with author" do
       sheet =
         XlsxWriter.new_sheet("Test")
-        |> XlsxWriter.write_comment(0, 0, "Review this value", author: "John Doe")
+        |> XlsxWriter.write_comment(0, 0, "Review this value",
+          author: "John Doe"
+        )
 
-      assert {"Test", [{:insert_note, 0, 0, "Review this value", options}]} = sheet
+      assert {"Test", [{:insert_note, 0, 0, "Review this value", options}]} =
+               sheet
+
       assert options.author == "John Doe"
     end
 
@@ -38,7 +44,10 @@ defmodule XlsxWriter.CommentTest do
     test "adds comment with custom dimensions" do
       sheet =
         XlsxWriter.new_sheet("Test")
-        |> XlsxWriter.write_comment(0, 0, "Large comment", width: 300, height: 200)
+        |> XlsxWriter.write_comment(0, 0, "Large comment",
+          width: 300,
+          height: 200
+        )
 
       assert {"Test", [{:insert_note, 0, 0, "Large comment", options}]} = sheet
       assert options.width == 300
@@ -55,7 +64,9 @@ defmodule XlsxWriter.CommentTest do
           height: 150
         )
 
-      assert {"Test", [{:insert_note, 0, 0, "Full featured note", options}]} = sheet
+      assert {"Test", [{:insert_note, 0, 0, "Full featured note", options}]} =
+               sheet
+
       assert options.author == "Jane Smith"
       assert options.visible == true
       assert options.width == 250
@@ -94,7 +105,10 @@ defmodule XlsxWriter.CommentTest do
 
       {"Test", instructions} = sheet
       assert length(instructions) == 2
-      assert {:insert_note, 0, 0, "Explanation of value", _} = Enum.at(instructions, 0)
+
+      assert {:insert_note, 0, 0, "Explanation of value", _} =
+               Enum.at(instructions, 0)
+
       assert {:write, 0, 0, {:string, "Cell value"}} = Enum.at(instructions, 1)
     end
 
@@ -146,12 +160,19 @@ defmodule XlsxWriter.CommentTest do
     test "generates xlsx with comments and complex formatting" do
       sheet =
         XlsxWriter.new_sheet("Dashboard")
-        |> XlsxWriter.write(0, 0, "Metric", format: [:bold, {:bg_color, "#4472C4"}])
+        |> XlsxWriter.write(0, 0, "Metric",
+          format: [:bold, {:bg_color, "#4472C4"}]
+        )
         |> XlsxWriter.write_comment(0, 0, "Key performance indicator")
-        |> XlsxWriter.write(0, 1, "Value", format: [:bold, {:bg_color, "#4472C4"}])
+        |> XlsxWriter.write(0, 1, "Value",
+          format: [:bold, {:bg_color, "#4472C4"}]
+        )
         |> XlsxWriter.write(1, 0, "Sales")
         |> XlsxWriter.write(1, 1, 1500, format: [{:num_format, "$#,##0.00"}])
-        |> XlsxWriter.write_comment(1, 1, "Q1 target: $2000", author: "Manager", visible: true)
+        |> XlsxWriter.write_comment(1, 1, "Q1 target: $2000",
+          author: "Manager",
+          visible: true
+        )
 
       assert {:ok, content} = XlsxWriter.generate([sheet])
       assert is_binary(content)

@@ -452,7 +452,10 @@ defmodule XlsxWriter do
         Validation.validate_formats!(formats)
 
         {name,
-         [{:write, row, col, {:rich_string_with_format, segments, formats}} | instructions]}
+         [
+           {:write, row, col, {:rich_string_with_format, segments, formats}}
+           | instructions
+         ]}
     end
   end
 
@@ -533,8 +536,9 @@ defmodule XlsxWriter do
   def write_comment({name, instructions}, row, col, text, opts \\ []) do
     Validation.validate_cell_position!(row, col)
 
-    unless is_binary(text) do
-      raise ArgumentError, "Comment text must be a string, got: #{inspect(text)}"
+    if !is_binary(text) do
+      raise ArgumentError,
+            "Comment text must be a string, got: #{inspect(text)}"
     end
 
     note_options = %XlsxWriter.NoteOptions{

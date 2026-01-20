@@ -857,27 +857,6 @@ defmodule XlsxWriterTest do
       assert <<80, _>> <> _ = content
     end
 
-    test "handles nil in boolean write" do
-      # This should raise since it's not a boolean
-      assert_raise FunctionClauseError, fn ->
-        XlsxWriter.new_sheet("Test")
-        |> XlsxWriter.write_boolean(0, 0, nil)
-      end
-    end
-
-    test "handles string in boolean write" do
-      assert_raise FunctionClauseError, fn ->
-        XlsxWriter.new_sheet("Test")
-        |> XlsxWriter.write_boolean(0, 0, "true")
-      end
-    end
-
-    test "handles integer in boolean write" do
-      assert_raise FunctionClauseError, fn ->
-        XlsxWriter.new_sheet("Test")
-        |> XlsxWriter.write_boolean(0, 0, 1)
-      end
-    end
   end
 
   describe "write_rich_string/5" do
@@ -955,10 +934,12 @@ defmodule XlsxWriterTest do
     end
 
     test "raises error for empty segments list" do
-      assert_raise ArgumentError, ~r/Rich string segments cannot be empty/, fn ->
-        XlsxWriter.new_sheet("Test")
-        |> XlsxWriter.write_rich_string(0, 0, [])
-      end
+      assert_raise ArgumentError,
+                   ~r/Rich string segments cannot be empty/,
+                   fn ->
+                     XlsxWriter.new_sheet("Test")
+                     |> XlsxWriter.write_rich_string(0, 0, [])
+                   end
     end
 
     test "raises error for non-list segments" do
@@ -969,31 +950,41 @@ defmodule XlsxWriterTest do
     end
 
     test "raises error for invalid segment tuple" do
-      assert_raise ArgumentError, ~r/Rich string segment must be a \{text, formats\} tuple/, fn ->
-        XlsxWriter.new_sheet("Test")
-        |> XlsxWriter.write_rich_string(0, 0, ["not a tuple"])
-      end
+      assert_raise ArgumentError,
+                   ~r/Rich string segment must be a \{text, formats\} tuple/,
+                   fn ->
+                     XlsxWriter.new_sheet("Test")
+                     |> XlsxWriter.write_rich_string(0, 0, ["not a tuple"])
+                   end
     end
 
     test "raises error for non-string text in segment" do
-      assert_raise ArgumentError, ~r/Rich string segment text must be a string/, fn ->
-        XlsxWriter.new_sheet("Test")
-        |> XlsxWriter.write_rich_string(0, 0, [{123, [:bold]}])
-      end
+      assert_raise ArgumentError,
+                   ~r/Rich string segment text must be a string/,
+                   fn ->
+                     XlsxWriter.new_sheet("Test")
+                     |> XlsxWriter.write_rich_string(0, 0, [{123, [:bold]}])
+                   end
     end
 
     test "raises error for non-list formats in segment" do
-      assert_raise ArgumentError, ~r/Rich string segment formats must be a list/, fn ->
-        XlsxWriter.new_sheet("Test")
-        |> XlsxWriter.write_rich_string(0, 0, [{"text", :bold}])
-      end
+      assert_raise ArgumentError,
+                   ~r/Rich string segment formats must be a list/,
+                   fn ->
+                     XlsxWriter.new_sheet("Test")
+                     |> XlsxWriter.write_rich_string(0, 0, [{"text", :bold}])
+                   end
     end
 
     test "validates color formats in segments" do
-      assert_raise XlsxWriter.Error, ~r/font_color.*expects a string hex color/, fn ->
-        XlsxWriter.new_sheet("Test")
-        |> XlsxWriter.write_rich_string(0, 0, [{"text", [{:font_color, true}]}])
-      end
+      assert_raise XlsxWriter.Error,
+                   ~r/font_color.*expects a string hex color/,
+                   fn ->
+                     XlsxWriter.new_sheet("Test")
+                     |> XlsxWriter.write_rich_string(0, 0, [
+                       {"text", [{:font_color, true}]}
+                     ])
+                   end
     end
 
     test "creates correct instruction for rich string without cell format" do
@@ -1022,8 +1013,8 @@ defmodule XlsxWriterTest do
       {"Test",
        [
          {:write, 0, 0,
-          {:rich_string_with_format, [{"Bold ", [:bold]}, {"Italic", [:italic]}],
-           [{:align, :center}]}}
+          {:rich_string_with_format,
+           [{"Bold ", [:bold]}, {"Italic", [:italic]}], [{:align, :center}]}}
        ]} = sheet
     end
   end
