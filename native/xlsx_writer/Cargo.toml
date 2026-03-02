@@ -1,6 +1,6 @@
 [package]
 name = "xlsx_writer"
-version = "0.7.4"
+version = "0.7.5"
 authors = []
 edition = "2021"
 
@@ -10,7 +10,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 rustler = "0.37.2"
-rust_xlsxwriter = "0.92.3"
+rust_xlsxwriter = "0.94.0"
 
 [features]
 default = ["nif_version_2_15"]

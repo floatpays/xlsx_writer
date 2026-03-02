@@ -1,3 +1,14 @@
+# v0.7.5
+
+## improvements
+
+- Update rust_xlsxwriter from 0.92.3 to 0.94.0
+  - Enhanced autofit support for formatted numbers and dates via optional `ssfmt` crate
+  - New `set_autofit_max_row()` and `set_autofit_max_width()` methods
+  - Fix XML escape-like strings (e.g. `_x1234`) being doubly escaped
+  - Fix floating-point precision issue in image fitting
+  - Updated `zip` dependency to v7.0
+
 # v0.7.4
 
 - Update Rust dependencies
