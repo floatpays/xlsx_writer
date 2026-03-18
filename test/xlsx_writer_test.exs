@@ -112,6 +112,19 @@ defmodule XlsxWriterTest do
     end
   end
 
+  describe "write_formula/5" do
+    test "generates valid xlsx with formatted formulas" do
+      sheet =
+        XlsxWriter.new_sheet("Formula Test")
+        |> XlsxWriter.write_formula(0, 0, "=SUM(A1:A3)",
+          format: [:bold, {:align, :center}]
+        )
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+  end
+
   describe "write_url/5" do
     test "generates valid xlsx with URLs" do
       sheet =

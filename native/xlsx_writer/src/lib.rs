@@ -89,6 +89,7 @@ enum CellData<'a> {
     Date(String),
     DateTime(String),
     Formula(String),
+    FormulaWithFormat(String, Vec<CellFormat>),
     Boolean(bool),
     BooleanWithFormat(bool, Vec<CellFormat>),
     Url(String),
@@ -310,6 +311,10 @@ fn write_data<'a, 'b>(
             }
         },
         CellData::Formula(val) => worksheet.write(row, col, Formula::new(val)),
+        CellData::FormulaWithFormat(val, formats) => {
+            let format = apply_formats(Format::new(), &formats);
+            worksheet.write_with_format(row, col, Formula::new(val), &format)
+        }
         CellData::Boolean(val) => worksheet.write_boolean(row, col, val),
         CellData::BooleanWithFormat(val, formats) => {
             let format = apply_formats(Format::new(), &formats);

@@ -211,6 +211,11 @@ defmodule XlsxWriter do
   - `row` - The row index (0-based)
   - `col` - The column index (0-based)
   - `val` - The Excel formula string (should start with '=')
+  - `opts` - Optional keyword list with formatting options
+
+  ## Options
+
+  - `:format` - A list of format specifications
 
   ## Returns
 
@@ -222,10 +227,22 @@ defmodule XlsxWriter do
       iex> sheet = XlsxWriter.write_formula(sheet, 0, 2, "=A1+B1")
       iex> {"Test", [{:write, 0, 2, {:formula, "=A1+B1"}}]} = sheet
 
+      iex> sheet = XlsxWriter.new_sheet("Test")
+      iex> sheet = XlsxWriter.write_formula(sheet, 0, 2, "=A1+B1", format: [:bold])
+      iex> {"Test", [{:write, 0, 2, {:formula_with_format, "=A1+B1", [:bold]}}]} = sheet
+
   """
-  def write_formula({name, instructions}, row, col, val) do
+  def write_formula({name, instructions}, row, col, val, opts \\ []) do
     Validation.validate_cell_position!(row, col)
-    {name, [{:write, row, col, {:formula, val}} | instructions]}
+
+    case Keyword.get(opts, :format) do
+      nil ->
+        {name, [{:write, row, col, {:formula, val}} | instructions]}
+
+      formats when is_list(formats) ->
+        Validation.validate_formats!(formats)
+        {name, [{:write, row, col, {:formula_with_format, val, formats}} | instructions]}
+    end
   end
 
   @doc """
