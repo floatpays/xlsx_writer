@@ -12,7 +12,7 @@ A high-performance Elixir library for creating Excel (.xlsx) spreadsheets. Built
 - 🎨 **Cell borders**: Apply borders with 13 styles and customizable colors per side
 - 🖼️ **Images**: Embed images directly into spreadsheets
 - 📐 **Layout control**: Set column widths, row heights, bulk sizing for ranges, freeze panes, hide rows/columns
-- 🧮 **Formulas**: Write Excel formulas and functions
+- 🧮 **Formulas**: Write Excel formulas and functions with optional formatting
 - 🔗 **Hyperlinks**: Create clickable URLs with custom display text
 - ✅ **Booleans**: Native Excel TRUE/FALSE values
 - 🔀 **Merged cells**: Combine multiple cells into one

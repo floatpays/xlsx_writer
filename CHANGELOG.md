@@ -1,3 +1,13 @@
+# v0.7.6
+
+## new features
+
+- Add format support for formula cells - `write_formula/5` now accepts a `format:` option for applying formatting (bold, colors, borders, etc.) to formula cells (contributed by @serpent213)
+
+## improvements
+
+- Update rustler from 0.37.2 to 0.37.3
+
 # v0.7.5
 
 ## improvements
