@@ -26,7 +26,7 @@ defmodule XlsxWriter.MixProject do
 
   defp deps do
     [
-      {:decimal, "~> 2.0"},
+      {:decimal, "~> 2.0 or ~> 3.0"},
       {:rustler_precompiled, "~> 0.8"},
       {:rustler, "~> 0.37.1", runtime: false},
 
