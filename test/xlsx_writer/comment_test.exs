@@ -89,11 +89,13 @@ defmodule XlsxWriter.CommentTest do
       sheet = XlsxWriter.new_sheet("Test")
 
       assert_raise ArgumentError, ~r/Comment text must be a string/, fn ->
-        XlsxWriter.write_comment(sheet, 0, 0, 123)
+        # credo:disable-for-next-line Credo.Check.Refactor.Apply
+        apply(XlsxWriter, :write_comment, [sheet, 0, 0, 123])
       end
 
       assert_raise ArgumentError, ~r/Comment text must be a string/, fn ->
-        XlsxWriter.write_comment(sheet, 0, 0, nil)
+        # credo:disable-for-next-line Credo.Check.Refactor.Apply
+        apply(XlsxWriter, :write_comment, [sheet, 0, 0, nil])
       end
     end
 

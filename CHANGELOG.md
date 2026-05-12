@@ -1,3 +1,15 @@
+# v0.8.1
+
+## improvements
+
+- Allow `:decimal` 3.0 alongside 2.0 in the dependency requirement.
+- Update `rust_xlsxwriter` from 0.94.0 to 0.95.0
+  - Optional `zmij` feature for ~10% faster numeric writes (replaces deprecated `ryu`)
+  - Fix double-escaping of URLs
+  - Fix chart titles containing brackets being ignored
+- Update `rustler` from 0.37.3 to 0.37.4
+- Update cargo transitive dependency `hashbrown` (0.17.0 → 0.17.1)
+
 # v0.8.0
 
 ## new features

@@ -988,37 +988,21 @@ defmodule XlsxWriter do
     {name, [instruction | instructions]}
   end
 
-  defp to_rust_val(val) do
-    case val do
-      %Decimal{} = amount ->
-        {:float, Decimal.to_float(amount)}
+  defp to_rust_val(%Decimal{} = amount), do: {:float, Decimal.to_float(amount)}
+  defp to_rust_val(%Date{} = date), do: {:date, Date.to_iso8601(date)}
+  defp to_rust_val(%DateTime{} = datetime), do: {:date_time, DateTime.to_iso8601(datetime)}
 
-      %Date{} = date ->
-        {:date, Date.to_iso8601(date)}
+  defp to_rust_val(%NaiveDateTime{} = datetime),
+    do: {:date_time, NaiveDateTime.to_iso8601(datetime)}
 
-      %DateTime{} = datetime ->
-        {:date_time, DateTime.to_iso8601(datetime)}
+  defp to_rust_val(val) when is_binary(val), do: {:string, val}
+  defp to_rust_val(val) when is_float(val), do: {:float, val}
+  defp to_rust_val(val) when is_integer(val), do: {:float, val}
+  defp to_rust_val(nil), do: {:string, ""}
+  defp to_rust_val(val) when is_atom(val), do: {:string, Atom.to_string(val)}
 
-      %NaiveDateTime{} = datetime ->
-        {:date_time, NaiveDateTime.to_iso8601(datetime)}
-
-      val when is_binary(val) ->
-        {:string, val}
-
-      val when is_float(val) ->
-        {:float, val}
-
-      val when is_integer(val) ->
-        {:float, val}
-
-      val when is_nil(val) ->
-        {:string, ""}
-
-      val when is_atom(val) ->
-        {:string, Atom.to_string(val)}
-
-      other ->
-        Validation.validate_supported_type!(other)
-    end
+  defp to_rust_val(other) do
+    raise XlsxWriter.Error,
+          "The data type for value \"#{inspect(other)}\" is not supported."
   end
 end
