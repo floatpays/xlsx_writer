@@ -402,10 +402,69 @@ defmodule XlsxWriter do
     write_with_format(sheet, row, col, "", formats)
   end
 
+  defp write_with_format(sheet, row, col, %Decimal{} = val, formats) do
+    write_with_format(sheet, row, col, Decimal.to_float(val), formats)
+  end
+
+  defp write_with_format(
+         {name, instructions},
+         row,
+         col,
+         %Date{} = val,
+         formats
+       ) do
+    Validation.validate_formats!(formats)
+
+    instruction =
+      {:write, row, col, {:date_with_format, Date.to_iso8601(val), formats}}
+
+    {name, [instruction | instructions]}
+  end
+
+  defp write_with_format(
+         {name, instructions},
+         row,
+         col,
+         %DateTime{} = val,
+         formats
+       ) do
+    Validation.validate_formats!(formats)
+
+    instruction =
+      {:write, row, col,
+       {:date_time_with_format, DateTime.to_iso8601(val), formats}}
+
+    {name, [instruction | instructions]}
+  end
+
+  defp write_with_format(
+         {name, instructions},
+         row,
+         col,
+         %NaiveDateTime{} = val,
+         formats
+       ) do
+    Validation.validate_formats!(formats)
+
+    instruction =
+      {:write, row, col,
+       {:date_time_with_format, NaiveDateTime.to_iso8601(val), formats}}
+
+    {name, [instruction | instructions]}
+  end
+
   defp write_with_format({name, instructions}, row, col, val, formats)
        when is_binary(val) do
     Validation.validate_formats!(formats)
     instruction = {:write, row, col, {:string_with_format, val, formats}}
+
+    {name, [instruction | instructions]}
+  end
+
+  defp write_with_format({name, instructions}, row, col, val, formats)
+       when is_boolean(val) do
+    Validation.validate_formats!(formats)
+    instruction = {:write, row, col, {:boolean_with_format, val, formats}}
 
     {name, [instruction | instructions]}
   end
@@ -418,6 +477,15 @@ defmodule XlsxWriter do
       {:write, row, col, {:number_with_format, numeric_val, formats}}
 
     {name, [instruction | instructions]}
+  end
+
+  defp write_with_format(sheet, row, col, val, formats) when is_atom(val) do
+    write_with_format(sheet, row, col, Atom.to_string(val), formats)
+  end
+
+  defp write_with_format(_sheet, _row, _col, val, _formats) do
+    raise XlsxWriter.Error,
+          "The data type for value \"#{inspect(val)}\" is not supported."
   end
 
   @doc """
@@ -936,6 +1004,100 @@ defmodule XlsxWriter do
   end
 
   defp merge_range_with_format(
+         sheet,
+         first_row,
+         first_col,
+         last_row,
+         last_col,
+         nil,
+         formats
+       ) do
+    merge_range_with_format(
+      sheet,
+      first_row,
+      first_col,
+      last_row,
+      last_col,
+      "",
+      formats
+    )
+  end
+
+  defp merge_range_with_format(
+         sheet,
+         first_row,
+         first_col,
+         last_row,
+         last_col,
+         %Decimal{} = val,
+         formats
+       ) do
+    merge_range_with_format(
+      sheet,
+      first_row,
+      first_col,
+      last_row,
+      last_col,
+      Decimal.to_float(val),
+      formats
+    )
+  end
+
+  defp merge_range_with_format(
+         {name, instructions},
+         first_row,
+         first_col,
+         last_row,
+         last_col,
+         %Date{} = val,
+         formats
+       ) do
+    Validation.validate_formats!(formats)
+
+    instruction =
+      {:merge_range, first_row, first_col, last_row, last_col,
+       {:date_with_format, Date.to_iso8601(val), formats}}
+
+    {name, [instruction | instructions]}
+  end
+
+  defp merge_range_with_format(
+         {name, instructions},
+         first_row,
+         first_col,
+         last_row,
+         last_col,
+         %DateTime{} = val,
+         formats
+       ) do
+    Validation.validate_formats!(formats)
+
+    instruction =
+      {:merge_range, first_row, first_col, last_row, last_col,
+       {:date_time_with_format, DateTime.to_iso8601(val), formats}}
+
+    {name, [instruction | instructions]}
+  end
+
+  defp merge_range_with_format(
+         {name, instructions},
+         first_row,
+         first_col,
+         last_row,
+         last_col,
+         %NaiveDateTime{} = val,
+         formats
+       ) do
+    Validation.validate_formats!(formats)
+
+    instruction =
+      {:merge_range, first_row, first_col, last_row, last_col,
+       {:date_time_with_format, NaiveDateTime.to_iso8601(val), formats}}
+
+    {name, [instruction | instructions]}
+  end
+
+  defp merge_range_with_format(
          {name, instructions},
          first_row,
          first_col,
@@ -960,6 +1122,25 @@ defmodule XlsxWriter do
          first_col,
          last_row,
          last_col,
+         val,
+         formats
+       )
+       when is_boolean(val) do
+    Validation.validate_formats!(formats)
+
+    instruction =
+      {:merge_range, first_row, first_col, last_row, last_col,
+       {:boolean_with_format, val, formats}}
+
+    {name, [instruction | instructions]}
+  end
+
+  defp merge_range_with_format(
+         {name, instructions},
+         first_row,
+         first_col,
+         last_row,
+         last_col,
          numeric_val,
          formats
        )
@@ -974,7 +1155,7 @@ defmodule XlsxWriter do
   end
 
   defp merge_range_with_format(
-         {name, instructions},
+         sheet,
          first_row,
          first_col,
          last_row,
@@ -982,14 +1163,29 @@ defmodule XlsxWriter do
          val,
          formats
        )
-       when is_boolean(val) do
-    Validation.validate_formats!(formats)
+       when is_atom(val) do
+    merge_range_with_format(
+      sheet,
+      first_row,
+      first_col,
+      last_row,
+      last_col,
+      Atom.to_string(val),
+      formats
+    )
+  end
 
-    instruction =
-      {:merge_range, first_row, first_col, last_row, last_col,
-       {:boolean_with_format, val, formats}}
-
-    {name, [instruction | instructions]}
+  defp merge_range_with_format(
+         _sheet,
+         _first_row,
+         _first_col,
+         _last_row,
+         _last_col,
+         val,
+         _formats
+       ) do
+    raise XlsxWriter.Error,
+          "The data type for value \"#{inspect(val)}\" is not supported."
   end
 
   defp to_rust_val(%Decimal{} = amount), do: {:float, Decimal.to_float(amount)}
@@ -1003,6 +1199,7 @@ defmodule XlsxWriter do
   defp to_rust_val(val) when is_float(val), do: {:float, val}
   defp to_rust_val(val) when is_integer(val), do: {:float, val}
   defp to_rust_val(nil), do: {:string, ""}
+  defp to_rust_val(val) when is_boolean(val), do: {:boolean, val}
   defp to_rust_val(val) when is_atom(val), do: {:string, Atom.to_string(val)}
 
   defp to_rust_val(other) do

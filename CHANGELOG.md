@@ -1,3 +1,12 @@
+# v0.8.3
+
+## fixes
+
+- `XlsxWriter.write/5` with a `:format` option now accepts the same value types as the unformatted path. Previously a `FunctionClauseError` was raised for `Date`, `DateTime`, `NaiveDateTime`, `Decimal`, atoms, and booleans because `write_with_format/5` only had clauses for `is_binary/1`, `is_number/1`, and (since v0.8.2) `nil`.
+- `XlsxWriter.merge_range/7` with a `:format` option got the same treatment: it now accepts `nil`, `Date`, `DateTime`, `NaiveDateTime`, `Decimal`, and atoms in addition to the previously-supported binary, number, and boolean.
+- Unknown value types passed to `write/5` or `merge_range/7` with a `:format` now raise `XlsxWriter.Error` with a clear message instead of a bare `FunctionClauseError`.
+- `XlsxWriter.write/5` with `true` or `false` (no format) now produces a boolean cell. Previously the value was converted to the string `"true"` / `"false"` because the `is_atom/1` clause in `to_rust_val/1` caught booleans before any boolean-specific handling.
+
 # v0.8.2
 
 ## fixes

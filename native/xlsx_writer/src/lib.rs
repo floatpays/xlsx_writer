@@ -101,7 +101,9 @@ enum CellData<'a> {
     ImagePath(String),
     Image(Binary<'a>),
     Date(String),
+    DateWithFormat(String, Vec<CellFormat>),
     DateTime(String),
+    DateTimeWithFormat(String, Vec<CellFormat>),
     Formula(String),
     FormulaWithFormat(String, Vec<CellFormat>),
     Boolean(bool),
@@ -350,6 +352,32 @@ fn merge_range<'a, 'b>(
             let format = apply_formats(Format::new(), &formats);
             worksheet.merge_range(first_row, first_col, last_row, last_col, "", &format)
         }
+        CellData::DateWithFormat(iso8601, user_formats) => {
+            let date_format = apply_formats(
+                Format::new().set_num_format("yyyy-mm-dd"),
+                &user_formats,
+            );
+
+            let date = match ExcelDateTime::parse_from_str(&iso8601) {
+                Err(e) => return Err(e),
+                Ok(d) => d,
+            };
+            worksheet.write_with_format(first_row, first_col, &date, &date_format)?;
+            worksheet.merge_range(first_row, first_col, last_row, last_col, "", &date_format)
+        }
+        CellData::DateTimeWithFormat(iso8601, user_formats) => {
+            let date_format = apply_formats(
+                Format::new().set_num_format("yyyy-mm-ddThh:mm:ss"),
+                &user_formats,
+            );
+
+            let date = match ExcelDateTime::parse_from_str(&iso8601) {
+                Err(e) => return Err(e),
+                Ok(d) => d,
+            };
+            worksheet.write_with_format(first_row, first_col, &date, &date_format)?;
+            worksheet.merge_range(first_row, first_col, last_row, last_col, "", &date_format)
+        }
         // For other types that don't support merge_range, write to first cell only
         _ => write_data(worksheet, first_row, first_col, data),
     }
@@ -381,8 +409,30 @@ fn write_data<'a, 'b>(
                 Ok(date) => worksheet.write_with_format(row, col, &date, &date_format),
             }
         },
+        CellData::DateWithFormat(iso8601, user_formats) => {
+            let date_format = apply_formats(
+                Format::new().set_num_format("yyyy-mm-dd"),
+                &user_formats,
+            );
+
+            match ExcelDateTime::parse_from_str(&iso8601) {
+                Err(e) => return Err(e),
+                Ok(date) => worksheet.write_with_format(row, col, &date, &date_format),
+            }
+        },
         CellData::DateTime(iso8601) => {
             let date_format = Format::new().set_num_format("yyyy-mm-ddThh:mm:ss");
+
+            match ExcelDateTime::parse_from_str(&iso8601) {
+                Err(e) => return Err(e),
+                Ok(date) => worksheet.write_with_format(row, col, &date, &date_format),
+            }
+        },
+        CellData::DateTimeWithFormat(iso8601, user_formats) => {
+            let date_format = apply_formats(
+                Format::new().set_num_format("yyyy-mm-ddThh:mm:ss"),
+                &user_formats,
+            );
 
             match ExcelDateTime::parse_from_str(&iso8601) {
                 Err(e) => return Err(e),

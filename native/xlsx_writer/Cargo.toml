@@ -1,6 +1,6 @@
 [package]
 name = "xlsx_writer"
-version = "0.8.2"
+version = "0.8.3"
 authors = []
 edition = "2021"
 

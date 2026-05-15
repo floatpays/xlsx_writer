@@ -1304,4 +1304,174 @@ defmodule XlsxWriterTest do
       assert byte_size(content) > 0
     end
   end
+
+  describe "crash regression sweep — write/5 with :format" do
+    test "boolean true with format does not crash" do
+      sheet =
+        XlsxWriter.new_sheet("X")
+        |> XlsxWriter.write(0, 0, true, format: [:bold])
+
+      assert {"X", [{:write, 0, 0, {:boolean_with_format, true, [:bold]}}]} =
+               sheet
+
+      assert {:ok, _} = XlsxWriter.generate([sheet])
+    end
+
+    test "boolean false with format does not crash" do
+      sheet =
+        XlsxWriter.new_sheet("X")
+        |> XlsxWriter.write(0, 0, false, format: [:italic])
+
+      assert {"X", [{:write, 0, 0, {:boolean_with_format, false, [:italic]}}]} =
+               sheet
+
+      assert {:ok, _} = XlsxWriter.generate([sheet])
+    end
+
+    test "Date with format does not crash" do
+      sheet =
+        XlsxWriter.new_sheet("X")
+        |> XlsxWriter.write(0, 0, ~D[2024-01-15], format: [:bold])
+
+      assert {:ok, _} = XlsxWriter.generate([sheet])
+    end
+
+    test "DateTime with format does not crash" do
+      sheet =
+        XlsxWriter.new_sheet("X")
+        |> XlsxWriter.write(0, 0, ~U[2024-01-15 09:30:00Z],
+          format: [{:align, :center}]
+        )
+
+      assert {:ok, _} = XlsxWriter.generate([sheet])
+    end
+
+    test "NaiveDateTime with format does not crash" do
+      sheet =
+        XlsxWriter.new_sheet("X")
+        |> XlsxWriter.write(0, 0, ~N[2024-01-15 09:30:00], format: [:bold])
+
+      assert {:ok, _} = XlsxWriter.generate([sheet])
+    end
+
+    test "Decimal with format does not crash" do
+      sheet =
+        XlsxWriter.new_sheet("X")
+        |> XlsxWriter.write(0, 0, Decimal.new("12.34"),
+          format: [{:num_format, "0.00"}]
+        )
+
+      assert {"X",
+              [
+                {:write, 0, 0,
+                 {:number_with_format, 12.34, [{:num_format, "0.00"}]}}
+              ]} = sheet
+
+      assert {:ok, _} = XlsxWriter.generate([sheet])
+    end
+
+    test "atom with format does not crash" do
+      sheet =
+        XlsxWriter.new_sheet("X")
+        |> XlsxWriter.write(0, 0, :hello, format: [:bold])
+
+      assert {"X",
+              [{:write, 0, 0, {:string_with_format, "hello", [:bold]}}]} =
+               sheet
+
+      assert {:ok, _} = XlsxWriter.generate([sheet])
+    end
+
+    test "unsupported type with format raises XlsxWriter.Error" do
+      sheet = XlsxWriter.new_sheet("X")
+
+      assert_raise XlsxWriter.Error, fn ->
+        XlsxWriter.write(sheet, 0, 0, self(), format: [:bold])
+      end
+    end
+  end
+
+  describe "crash regression sweep — merge_range/7 with :format" do
+    test "nil with format does not crash" do
+      sheet =
+        XlsxWriter.new_sheet("X")
+        |> XlsxWriter.merge_range(0, 0, 0, 3, nil, format: [:bold])
+
+      assert {:ok, _} = XlsxWriter.generate([sheet])
+    end
+
+    test "Date with format does not crash" do
+      sheet =
+        XlsxWriter.new_sheet("X")
+        |> XlsxWriter.merge_range(0, 0, 0, 3, ~D[2024-01-15],
+          format: [:bold, {:align, :center}]
+        )
+
+      assert {:ok, _} = XlsxWriter.generate([sheet])
+    end
+
+    test "DateTime with format does not crash" do
+      sheet =
+        XlsxWriter.new_sheet("X")
+        |> XlsxWriter.merge_range(0, 0, 0, 3, ~U[2024-01-15 09:30:00Z],
+          format: [:bold]
+        )
+
+      assert {:ok, _} = XlsxWriter.generate([sheet])
+    end
+
+    test "NaiveDateTime with format does not crash" do
+      sheet =
+        XlsxWriter.new_sheet("X")
+        |> XlsxWriter.merge_range(0, 0, 0, 3, ~N[2024-01-15 09:30:00],
+          format: [:bold]
+        )
+
+      assert {:ok, _} = XlsxWriter.generate([sheet])
+    end
+
+    test "Decimal with format does not crash" do
+      sheet =
+        XlsxWriter.new_sheet("X")
+        |> XlsxWriter.merge_range(0, 0, 0, 3, Decimal.new("99.5"),
+          format: [{:num_format, "0.00"}]
+        )
+
+      assert {:ok, _} = XlsxWriter.generate([sheet])
+    end
+
+    test "atom with format does not crash" do
+      sheet =
+        XlsxWriter.new_sheet("X")
+        |> XlsxWriter.merge_range(0, 0, 0, 3, :hello, format: [:bold])
+
+      assert {:ok, _} = XlsxWriter.generate([sheet])
+    end
+
+    test "unsupported type with format raises XlsxWriter.Error" do
+      sheet = XlsxWriter.new_sheet("X")
+
+      assert_raise XlsxWriter.Error, fn ->
+        XlsxWriter.merge_range(sheet, 0, 0, 0, 3, self(), format: [:bold])
+      end
+    end
+  end
+
+  describe "crash regression sweep — write/5 boolean semantics" do
+    test "boolean true (no format) produces a boolean cell, not a string" do
+      sheet =
+        XlsxWriter.new_sheet("X")
+        |> XlsxWriter.write(0, 0, true)
+
+      assert {"X", [{:write, 0, 0, {:boolean, true}}]} = sheet
+    end
+
+    test "boolean false (no format) produces a boolean cell, not a string" do
+      sheet =
+        XlsxWriter.new_sheet("X")
+        |> XlsxWriter.write(0, 0, false)
+
+      assert {"X", [{:write, 0, 0, {:boolean, false}}]} = sheet
+    end
+  end
 end
