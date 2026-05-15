@@ -96,6 +96,23 @@ defmodule XlsxWriterTest do
     end
   end
 
+  describe "write/5 with nil value" do
+    test "writes a nil value with a format as an empty string cell" do
+      sheet =
+        XlsxWriter.new_sheet("Nil Test")
+        |> XlsxWriter.write(0, 0, nil, format: [:bold, {:font_name, "Arial"}])
+
+      assert {"Nil Test",
+              [
+                {:write, 0, 0,
+                 {:string_with_format, "", [:bold, {:font_name, "Arial"}]}}
+              ]} = sheet
+
+      assert {:ok, content} = XlsxWriter.generate([sheet])
+      assert <<80, _>> <> _ = content
+    end
+  end
+
   describe "write_boolean/5" do
     test "generates valid xlsx with boolean values" do
       sheet =

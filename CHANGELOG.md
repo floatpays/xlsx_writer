@@ -1,3 +1,9 @@
+# v0.8.2
+
+## fixes
+
+- `XlsxWriter.write/5` with a format option now accepts `nil` values, writing an empty string cell with the format applied. Previously this raised `FunctionClauseError` from `write_with_format/5`, while the unformatted path (`write/4` without `:format`) already handled `nil` via `to_rust_val/1`. This makes the two paths consistent.
+
 # v0.8.1
 
 ## improvements

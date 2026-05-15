@@ -398,6 +398,10 @@ defmodule XlsxWriter do
     {name, [{:write, row, col, {:blank, formats}} | instructions]}
   end
 
+  defp write_with_format(sheet, row, col, nil, formats) do
+    write_with_format(sheet, row, col, "", formats)
+  end
+
   defp write_with_format({name, instructions}, row, col, val, formats)
        when is_binary(val) do
     Validation.validate_formats!(formats)
