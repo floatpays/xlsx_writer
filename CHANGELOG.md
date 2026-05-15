@@ -1,3 +1,18 @@
+# v0.9.0
+
+## breaking changes
+
+- `XlsxWriter.set_column_range_width/4` and `XlsxWriter.set_row_range_height/4` now use the same units as their single-cell counterparts (`set_column_width/3`, `set_row_height/3`): Excel character units for column widths, points for row heights. Previously the range variants used pixels, which silently rendered very differently from the single-cell variants for the same numeric value. Callers passing pixel values will need to convert (rough rule of thumb: 1 character ≈ 7 pixels for default font; 1 point ≈ 1.333 pixels).
+
+## fixes
+
+- `XlsxWriter.write/5` with a URL value, link text, and `:format` option no longer drops the hyperlink. The previous implementation wrote the URL and then immediately overwrote the cell with plain formatted text, leaving the link text visible but not clickable.
+
+## improvements
+
+- Both NIFs (`write/1`, `write_with_properties/2`) are now scheduled on dirty CPU schedulers. Workbook serialization is CPU-bound and can take far longer than the BEAM's ~1ms NIF budget; running on dirty schedulers prevents the calling scheduler thread from stalling and avoids tail-latency spikes on unrelated processes in the same VM.
+- Embedding an image via a binary no longer copies the buffer before handing it to `rust_xlsxwriter`. For multi-MB images this saves a full allocation and copy per cell.
+
 # v0.8.3
 
 ## fixes

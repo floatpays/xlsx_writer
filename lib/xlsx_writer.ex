@@ -718,7 +718,7 @@ defmodule XlsxWriter do
   - `sheet` - The sheet tuple `{name, instructions}`
   - `first_col` - The first column index (0-based)
   - `last_col` - The last column index (0-based, inclusive)
-  - `width` - The width value in pixels
+  - `width` - The width value in Excel character units (matches `set_column_width/3`)
 
   ## Returns
 
@@ -746,7 +746,7 @@ defmodule XlsxWriter do
   - `sheet` - The sheet tuple `{name, instructions}`
   - `first_row` - The first row index (0-based)
   - `last_row` - The last row index (0-based, inclusive)
-  - `height` - The height value in pixels
+  - `height` - The height value in points (matches `set_row_height/3`)
 
   ## Returns
 

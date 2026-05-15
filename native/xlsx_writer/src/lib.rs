@@ -148,12 +148,12 @@ struct WorkbookProperties {
     status: Option<String>,
 }
 
-#[rustler::nif]
+#[rustler::nif(schedule = "DirtyCpu")]
 fn write(sheets: Vec<(String, Vec<Sheet>)>) -> Result<Vec<u8>, String> {
     write_impl(sheets, None)
 }
 
-#[rustler::nif]
+#[rustler::nif(schedule = "DirtyCpu")]
 fn write_with_properties(sheets: Vec<(String, Vec<Sheet>)>, properties: WorkbookProperties) -> Result<Vec<u8>, String> {
     write_impl(sheets, Some(properties))
 }
@@ -212,10 +212,9 @@ fn write_impl(sheets: Vec<(String, Vec<Sheet>)>, properties: Option<WorkbookProp
                     Err(e) => return Err(e.to_string()),
                 },
                 Sheet::SetColumnRangeWidth(first_col, last_col, width) => {
-                    // Set width for each column in the range
                     let mut ws = worksheet;
                     for col in first_col..=last_col {
-                        ws = match ws.set_column_width_pixels(col, width) {
+                        ws = match ws.set_column_width(col, width) {
                             Ok(w) => w,
                             Err(e) => return Err(e.to_string()),
                         };
@@ -223,10 +222,9 @@ fn write_impl(sheets: Vec<(String, Vec<Sheet>)>, properties: Option<WorkbookProp
                     ws
                 }
                 Sheet::SetRowRangeHeight(first_row, last_row, height) => {
-                    // Set height for each row in the range
                     let mut ws = worksheet;
                     for row in first_row..=last_row {
-                        ws = match ws.set_row_height_pixels(row, height as u32) {
+                        ws = match ws.set_row_height(row, height) {
                             Ok(w) => w,
                             Err(e) => return Err(e.to_string()),
                         };
@@ -464,9 +462,8 @@ fn write_data<'a, 'b>(
         }
         CellData::UrlWithTextAndFormat(url, text, formats) => {
             let format = apply_formats(Format::new(), &formats);
-            let url_obj = Url::new(&url);
-            worksheet.write_url_with_text(row, col, &url_obj, &text)?;
-            worksheet.write_with_format(row, col, &text, &format)
+            let url_obj = Url::new(&url).set_text(&text);
+            worksheet.write_url_with_format(row, col, &url_obj, &format)
         }
         CellData::Blank(formats) => {
             let format = apply_formats(Format::new(), &formats);
@@ -476,14 +473,10 @@ fn write_data<'a, 'b>(
             Err(e) => return Err(e),
             Ok(image) => worksheet.insert_image(row, col, &image),
         },
-        CellData::Image(binary) => {
-            let val = binary.as_slice().to_vec();
-
-            match Image::new_from_buffer(&val) {
-                Err(e) => return Err(e),
-                Ok(image) => worksheet.insert_image(row, col, &image),
-            }
-        }
+        CellData::Image(binary) => match Image::new_from_buffer(binary.as_slice()) {
+            Err(e) => return Err(e),
+            Ok(image) => worksheet.insert_image(row, col, &image),
+        },
         CellData::RichString(segments) => {
             write_rich_string_helper(worksheet, row, col, &segments, None)
         }
