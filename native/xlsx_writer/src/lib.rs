@@ -2,7 +2,9 @@ use rust_xlsxwriter::{
     Color, DocProperties, ExcelDateTime, Format, FormatAlign, FormatBorder, FormatPattern,
     FormatScript, FormatUnderline, Formula, Image, Note, Url, Workbook, Worksheet, XlsxError,
 };
-use rustler::{Binary, NifTaggedEnum};
+use rustler::{Binary, NifTaggedEnum, ResourceArc};
+use std::path::Path;
+use std::sync::Mutex;
 
 #[derive(NifTaggedEnum, PartialEq)]
 enum CellAlignPos {
@@ -151,6 +153,173 @@ struct WorkbookProperties {
     status: Option<String>,
 }
 
+struct StreamWorkbook {
+    state: Mutex<Option<StreamState>>,
+}
+
+struct StreamState {
+    workbook: Workbook,
+    current_sheet: Option<usize>,
+    last_row: Option<u32>,
+}
+
+#[rustler::resource_impl]
+impl rustler::Resource for StreamWorkbook {}
+
+#[rustler::nif(schedule = "DirtyIo")]
+fn stream_open(
+    tempdir: Option<String>,
+    properties: Option<WorkbookProperties>,
+) -> Result<ResourceArc<StreamWorkbook>, String> {
+    let mut workbook = Workbook::new();
+    if let Some(dir) = tempdir {
+        workbook.set_tempdir(dir).map_err(|e| e.to_string())?;
+    }
+    if let Some(props) = properties {
+        set_workbook_properties(&mut workbook, props);
+    }
+    Ok(ResourceArc::new(StreamWorkbook {
+        state: Mutex::new(Some(StreamState {
+            workbook,
+            current_sheet: None,
+            last_row: None,
+        })),
+    }))
+}
+
+#[rustler::nif(schedule = "DirtyIo")]
+fn stream_add_sheet(resource: ResourceArc<StreamWorkbook>, name: String) -> Result<(), String> {
+    let mut guard = resource.state.lock().map_err(|e| e.to_string())?;
+    let state = guard.as_mut().ok_or("Workbook is closed")?;
+    let index = state.workbook.worksheets().len();
+    let result = state
+        .workbook
+        .add_worksheet_with_constant_memory()
+        .set_name(name)
+        .map(|_| ());
+    if let Err(error) = result {
+        *guard = None;
+        return Err(error.to_string());
+    }
+    state.current_sheet = Some(index);
+    state.last_row = None;
+    Ok(())
+}
+
+#[rustler::nif(schedule = "DirtyIo")]
+fn stream_configure_sheet<'a>(
+    resource: ResourceArc<StreamWorkbook>,
+    instructions: Vec<Sheet<'a>>,
+) -> Result<(), String> {
+    let mut guard = resource.state.lock().map_err(|e| e.to_string())?;
+    let state = guard.as_mut().ok_or("Workbook is closed")?;
+    let index = state
+        .current_sheet
+        .ok_or("Add a sheet before configuring it")?;
+    if state.last_row.is_some() {
+        return Err("Configure the sheet before writing rows".to_string());
+    }
+
+    for instruction in instructions {
+        let worksheet = state
+            .workbook
+            .worksheet_from_index(index)
+            .map_err(|e| e.to_string())?;
+        let result = match instruction {
+            Sheet::SetColumnWidth(col, width) => worksheet.set_column_width(col, width).map(|_| ()),
+            Sheet::SetColumnRangeWidth(first, last, width) => {
+                let mut result = Ok(());
+                for col in first..=last {
+                    if let Err(error) = worksheet.set_column_width(col, width) {
+                        result = Err(error);
+                        break;
+                    }
+                }
+                result
+            }
+            Sheet::SetFreezePanes(row, col) => worksheet.set_freeze_panes(row, col).map(|_| ()),
+            Sheet::SetColumnHidden(col) => worksheet.set_column_hidden(col).map(|_| ()),
+            Sheet::SetAutofilter(first_row, first_col, last_row, last_col) => worksheet
+                .autofilter(first_row, first_col, last_row, last_col)
+                .map(|_| ()),
+            Sheet::SetTabColor(color_hex) => {
+                let color = parse_hex_color(&color_hex).ok_or("Invalid tab color")?;
+                worksheet.set_tab_color(color);
+                Ok(())
+            }
+            _ => return Err("Unsupported sheet instruction in constant memory mode".to_string()),
+        };
+        if let Err(error) = result {
+            return Err(error.to_string());
+        }
+    }
+    Ok(())
+}
+
+#[rustler::nif(schedule = "DirtyIo")]
+fn stream_write_cells<'a>(
+    resource: ResourceArc<StreamWorkbook>,
+    cells: Vec<(u32, u16, CellData<'a>)>,
+) -> Result<(), String> {
+    let mut guard = resource.state.lock().map_err(|e| e.to_string())?;
+    let state = guard.as_mut().ok_or("Workbook is closed")?;
+    let index = state
+        .current_sheet
+        .ok_or("Add a sheet before writing cells")?;
+    let mut last_row = state.last_row;
+
+    for (row, col, data) in cells {
+        if last_row.is_some_and(|previous| row < previous) {
+            *guard = None;
+            return Err(format!(
+                "Row {row} follows row {} in constant memory mode",
+                last_row.unwrap()
+            ));
+        }
+        let result = state
+            .workbook
+            .worksheet_from_index(index)
+            .and_then(|worksheet| write_data(worksheet, row, col, data).map(|_| ()));
+        if let Err(error) = result {
+            *guard = None;
+            return Err(error.to_string());
+        }
+        last_row = Some(row);
+    }
+    state.last_row = last_row;
+    Ok(())
+}
+
+#[rustler::nif(schedule = "DirtyIo")]
+fn stream_finish(resource: ResourceArc<StreamWorkbook>, path: String) -> Result<(), String> {
+    let mut guard = resource.state.lock().map_err(|e| e.to_string())?;
+    let mut state = guard.take().ok_or("Workbook is closed")?;
+    if state.current_sheet.is_none() {
+        return Err("Add at least one sheet before finishing".to_string());
+    }
+
+    let output = Path::new(&path);
+    let parent = output
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    let temporary = tempfile::Builder::new()
+        .prefix(".xlsx_writer-")
+        .tempfile_in(parent)
+        .map_err(|e| e.to_string())?
+        .into_temp_path();
+    state.workbook.save(&temporary).map_err(|e| e.to_string())?;
+    temporary.persist(output).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[rustler::nif]
+fn stream_abort(resource: ResourceArc<StreamWorkbook>) -> Result<(), String> {
+    let mut guard = resource.state.lock().map_err(|e| e.to_string())?;
+    *guard = None;
+    Ok(())
+}
+
 #[rustler::nif(schedule = "DirtyCpu")]
 fn write(sheets: Vec<(String, Vec<Sheet>)>) -> Result<Vec<u8>, String> {
     write_impl(sheets, None)
@@ -171,35 +340,7 @@ fn write_impl(
     let mut workbook = Workbook::new();
 
     if let Some(props) = properties {
-        let mut doc_props = DocProperties::new();
-        if let Some(author) = props.author {
-            doc_props = doc_props.set_author(&author);
-        }
-        if let Some(title) = props.title {
-            doc_props = doc_props.set_title(&title);
-        }
-        if let Some(subject) = props.subject {
-            doc_props = doc_props.set_subject(&subject);
-        }
-        if let Some(manager) = props.manager {
-            doc_props = doc_props.set_manager(&manager);
-        }
-        if let Some(company) = props.company {
-            doc_props = doc_props.set_company(&company);
-        }
-        if let Some(category) = props.category {
-            doc_props = doc_props.set_category(&category);
-        }
-        if let Some(keywords) = props.keywords {
-            doc_props = doc_props.set_keywords(&keywords);
-        }
-        if let Some(comment) = props.comment {
-            doc_props = doc_props.set_comment(&comment);
-        }
-        if let Some(status) = props.status {
-            doc_props = doc_props.set_status(&status);
-        }
-        workbook.set_properties(&doc_props);
+        set_workbook_properties(&mut workbook, props);
     }
 
     for (sheet_name, sheet) in sheets {
@@ -289,6 +430,38 @@ fn write_impl(
         Ok(buf) => Ok(buf),
         Err(e) => Err(e.to_string()),
     }
+}
+
+fn set_workbook_properties(workbook: &mut Workbook, props: WorkbookProperties) {
+    let mut doc_props = DocProperties::new();
+    if let Some(author) = props.author {
+        doc_props = doc_props.set_author(&author);
+    }
+    if let Some(title) = props.title {
+        doc_props = doc_props.set_title(&title);
+    }
+    if let Some(subject) = props.subject {
+        doc_props = doc_props.set_subject(&subject);
+    }
+    if let Some(manager) = props.manager {
+        doc_props = doc_props.set_manager(&manager);
+    }
+    if let Some(company) = props.company {
+        doc_props = doc_props.set_company(&company);
+    }
+    if let Some(category) = props.category {
+        doc_props = doc_props.set_category(&category);
+    }
+    if let Some(keywords) = props.keywords {
+        doc_props = doc_props.set_keywords(&keywords);
+    }
+    if let Some(comment) = props.comment {
+        doc_props = doc_props.set_comment(&comment);
+    }
+    if let Some(status) = props.status {
+        doc_props = doc_props.set_status(&status);
+    }
+    workbook.set_properties(&doc_props);
 }
 
 fn insert_note(

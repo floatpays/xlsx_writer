@@ -41,4 +41,16 @@ defmodule XlsxWriter.RustXlsxWriter do
 
   def write_with_properties(_data, _properties),
     do: :erlang.nif_error(:nif_not_loaded)
+
+  def stream_open(_tempdir, _properties), do: :erlang.nif_error(:nif_not_loaded)
+  def stream_add_sheet(_resource, _name), do: :erlang.nif_error(:nif_not_loaded)
+
+  def stream_configure_sheet(_resource, _instructions),
+    do: :erlang.nif_error(:nif_not_loaded)
+
+  def stream_write_cells(_resource, _cells),
+    do: :erlang.nif_error(:nif_not_loaded)
+
+  def stream_finish(_resource, _path), do: :erlang.nif_error(:nif_not_loaded)
+  def stream_abort(_resource), do: :erlang.nif_error(:nif_not_loaded)
 end

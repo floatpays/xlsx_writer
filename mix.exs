@@ -65,6 +65,7 @@ defmodule XlsxWriter.MixProject do
       main: "XlsxWriter",
       extras: [
         "guides/getting_started.md",
+        "guides/constant_memory.md",
         "guides/builder_api.md",
         "guides/formatting.md",
         "guides/layout_features.md"

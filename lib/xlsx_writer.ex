@@ -24,6 +24,7 @@ defmodule XlsxWriter do
   ## Guides
 
   - [Getting Started](guides/getting_started.md) - Basic usage and data types
+  - [Constant Memory Exports](guides/constant_memory.md) - Sequential file exports for large datasets
   - [Builder API](guides/builder_api.md) - High-level API for quick data export (⚠️ Experimental)
   - [Advanced Formatting](guides/formatting.md) - Fonts, colors, borders, and number formats
   - [Layout Features](guides/layout_features.md) - Freeze panes, merged cells, autofilters, and more

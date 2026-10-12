@@ -4,6 +4,29 @@
 
 A high-performance Elixir library for creating Excel (.xlsx) spreadsheets. Built with the powerful [rust_xlsxwriter](https://github.com/jmcnamara/rust_xlsxwriter) crate via Rustler NIF, providing excellent speed and memory efficiency.
 
+## Constant memory exports
+
+Use `XlsxWriter.Stream.write_file/3` for large, sequential exports. Supply an
+Enumerable of rows for each sheet; the library sends bounded batches to the
+Rust writer and saves the XLSX file directly to disk.
+
+```elixir
+rows = Stream.map(1..100_000, fn n -> [n, "Row #{n}"] end)
+
+:ok =
+  XlsxWriter.Stream.write_file(
+    "large.xlsx",
+    [{"Data", rows}],
+    batch_size: 500,
+    tempdir: "/path/to/disk-backed/temp"
+  )
+```
+
+Rows must be written in increasing order. `tempdir` is optional and must
+already exist. Choose a disk-backed directory for large exports. The existing
+`XlsxWriter.generate/2` and `XlsxWriter.Builder` APIs retain workbook data in
+memory and return or build an XLSX binary.
+
 ## Features
 
 - ⚡ **Fast**: Leverages Rust for high-performance spreadsheet generation
