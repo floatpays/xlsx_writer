@@ -2112,6 +2112,41 @@ defmodule XlsxWriterTest do
       end
     end
 
+    test "error messages describe terms briefly and never include binary payloads" do
+      image = :binary.copy(<<0xFF>>, 1_000_000)
+      rows = for row <- 0..99_999, do: {:write, row, 0, {:string, "x", []}}
+
+      assert {:error, message} =
+               XlsxWriter.generate([{:not_a_name, rows}])
+
+      assert message =~
+               ~r/^invalid sheet #1: \{not_a_name,\[\{write,\d+,0,{string,"x",\[\]\}\},/
+
+      assert message =~ ",...]}"
+      assert String.length(message) < 250
+
+      assert XlsxWriter.generate([
+               {"S", [{:write, 0, 0, {:image, image, :extra}}]}
+             ]) ==
+               {:error,
+                ~s(invalid instruction #1 in sheet "S": {write,0,0,{image,<<1000000 bytes>>,extra}})}
+
+      long_text = String.duplicate("a", 1000)
+
+      assert {:error, message} =
+               XlsxWriter.generate([
+                 {"S", [{:write, 0, 0, {:string, long_text}}]}
+               ])
+
+      assert message ==
+               ~s(invalid instruction #1 in sheet "S": {write,0,0,{string,<<1000 bytes>>}})
+
+      wide_tuple = List.to_tuple(List.duplicate(:abcdef, 1000))
+      assert {:error, message} = XlsxWriter.generate([{"S", [wide_tuple]}])
+      assert String.ends_with?(message, "...")
+      assert String.length(message) < 250
+    end
+
     test "returns an error for a malformed sheet" do
       assert XlsxWriter.generate([:nope]) == {:error, "invalid sheet #1: nope"}
 

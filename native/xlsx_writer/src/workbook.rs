@@ -3,16 +3,19 @@
 use rust_xlsxwriter::{DocProperties, Workbook};
 use rustler::Term;
 
-use crate::error::{WriteError, WriteResult};
+use crate::error::{describe_term, WriteError, WriteResult};
 use crate::protocol::{Instruction, WorkbookProperties};
 use crate::worksheet::{apply_instruction, finish_sheet, SheetState};
 
 pub fn write_workbook(sheets: Vec<Term>, properties: Term) -> WriteResult<Vec<u8>> {
     let mut workbook = Workbook::new();
 
-    let properties: Option<WorkbookProperties> = properties
-        .decode()
-        .map_err(|_| WriteError::new(format!("invalid workbook properties: {properties:?}")))?;
+    let properties: Option<WorkbookProperties> = properties.decode().map_err(|_| {
+        WriteError::new(format!(
+            "invalid workbook properties: {}",
+            describe_term(properties)
+        ))
+    })?;
 
     if let Some(properties) = properties {
         workbook.set_properties(&document_properties(properties));
@@ -20,7 +23,11 @@ pub fn write_workbook(sheets: Vec<Term>, properties: Term) -> WriteResult<Vec<u8
 
     for (sheet_index, sheet) in sheets.iter().enumerate() {
         let (sheet_name, instructions): (String, Vec<Term>) = sheet.decode().map_err(|_| {
-            WriteError::new(format!("invalid sheet #{}: {sheet:?}", sheet_index + 1))
+            WriteError::new(format!(
+                "invalid sheet #{}: {}",
+                sheet_index + 1,
+                describe_term(*sheet)
+            ))
         })?;
 
         let worksheet = workbook.add_worksheet();
@@ -31,8 +38,9 @@ pub fn write_workbook(sheets: Vec<Term>, properties: Term) -> WriteResult<Vec<u8
         for (instruction_index, term) in instructions.iter().enumerate() {
             let instruction: Instruction = term.decode().map_err(|_| {
                 WriteError::new(format!(
-                    "invalid instruction #{} in sheet {sheet_name:?}: {term:?}",
-                    instruction_index + 1
+                    "invalid instruction #{} in sheet {sheet_name:?}: {}",
+                    instruction_index + 1,
+                    describe_term(*term)
                 ))
             })?;
 
