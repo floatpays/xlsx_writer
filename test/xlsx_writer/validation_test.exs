@@ -83,6 +83,24 @@ defmodule XlsxWriter.ValidationTest do
     end
   end
 
+  describe "validate_supported_type!/1 (deprecated)" do
+    # The module is passed through the test context so that calling the
+    # deprecated function does not emit a compile-time warning.
+    setup do
+      %{validation: Validation}
+    end
+
+    test "still raises XlsxWriter.Error, as in 0.10.4", %{
+      validation: validation
+    } do
+      assert validation.validate_supported_type!("text") == :ok
+
+      assert_raise XlsxWriter.Error, ~r/is not supported/, fn ->
+        validation.validate_supported_type!(self())
+      end
+    end
+  end
+
   describe "validate_comment_options!/1" do
     test "rejects invalid options" do
       for {options, message} <- [

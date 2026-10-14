@@ -67,6 +67,8 @@ defmodule XlsxWriter.MixProject do
   defp docs do
     [
       main: "XlsxWriter",
+      # Hidden, but still mentioned in the docs and the changelog.
+      skip_code_autolink_to: ["XlsxWriter.Error"],
       extras: [
         "guides/getting_started.md",
         "guides/builder_api.md",

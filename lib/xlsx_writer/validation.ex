@@ -266,7 +266,8 @@ defmodule XlsxWriter.Validation do
   Validates that a value is a supported data type.
 
   Deprecated: `XlsxWriter.write/5` and `XlsxWriter.merge_range/7` already
-  raise `ArgumentError` for unsupported values.
+  raise `ArgumentError` for unsupported values. This function still raises
+  `XlsxWriter.Error`, as it did before.
   """
   @deprecated "XlsxWriter.write/5 validates values itself; this function will be removed"
   def validate_supported_type!(value) do
@@ -287,8 +288,8 @@ defmodule XlsxWriter.Validation do
         :ok
 
       other ->
-        raise ArgumentError,
-              "The data type for value #{inspect(other)} is not supported."
+        raise XlsxWriter.Error,
+              "The data type for value \"#{inspect(other)}\" is not supported."
     end
   end
 
