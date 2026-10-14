@@ -2142,15 +2142,19 @@ defmodule XlsxWriterTest do
     test "the NIF rejects out-of-range positions in raw instructions instead of wrapping them" do
       for {instruction, message} <- [
             {{:write, 0, 70_000, {:string, "x", []}},
-             "column 70000 is outside Excel's range 0..16383"},
-            {{:write, -1, 0, {:string, "x", []}},
-             "row -1 is outside Excel's range 0..1048575"},
+             "column 70000 is out of range"},
+            {{:write, -1, 0, {:string, "x", []}}, "row -1 is out of range"},
             {{:set_column_range_width, 0, 65_537, 10},
-             "column 65537 is outside Excel's range 0..16383"},
+             "column 65537 is out of range"},
             {{:set_row_height, 4_294_967_296, 10},
-             "row 4294967296 is outside Excel's range 0..1048575"},
+             "row 4294967296 is out of range"},
+            # In range for the type: rust_xlsxwriter checks Excel's grid.
+            {{:write, 1_048_576, 0, {:string, "x", []}},
+             "Row or column exceeds Excel's allowed limits (1,048,576 x 16,384)."},
+            {{:write, 0, 16_384, {:string, "x", []}},
+             "Row or column exceeds Excel's allowed limits (1,048,576 x 16,384)."},
             {{:write, 0, 0, {:string, "x", [{:indent, 257}]}},
-             "indent 257 is outside the range 0..255"},
+             "indent 257 is out of range"},
             {{:write, 0, 0, {:string, "x", [{:rotation, 65_581}]}},
              "rotation 65581 must be between -90 and 90, or 270"}
           ] do

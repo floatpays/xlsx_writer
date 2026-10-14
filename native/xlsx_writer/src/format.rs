@@ -6,7 +6,8 @@ use rust_xlsxwriter::{
 
 use crate::error::{WriteError, WriteResult};
 use crate::protocol::{
-    BorderStyle, CellAlignPos, CellData, CellFormat, CellPattern, CellVAlignPos, UnderlineStyle,
+    finite, narrow, BorderStyle, CellAlignPos, CellData, CellFormat, CellPattern, CellVAlignPos,
+    UnderlineStyle,
 };
 
 const DEFAULT_DATE_FORMAT: &str = "yyyy-mm-dd";
@@ -74,7 +75,7 @@ pub fn apply_formats(mut format: Format, formats: &[CellFormat]) -> WriteResult<
                 }
             },
             CellFormat::Strikethrough => format.set_font_strikethrough(),
-            CellFormat::FontSize(size) => format.set_font_size(font_size(*size)?),
+            CellFormat::FontSize(size) => format.set_font_size(finite(*size, "font size")?),
             CellFormat::FontName(name) => format.set_font_name(name),
             CellFormat::Superscript => format.set_font_script(FormatScript::Superscript),
             CellFormat::Subscript => format.set_font_script(FormatScript::Subscript),
@@ -106,7 +107,7 @@ pub fn apply_formats(mut format: Format, formats: &[CellFormat]) -> WriteResult<
             },
             CellFormat::Rotation(angle) => format.set_rotation(rotation(*angle)?),
             CellFormat::Shrink => format.set_shrink(),
-            CellFormat::Indent(level) => format.set_indent(indent(*level)?),
+            CellFormat::Indent(level) => format.set_indent(narrow(*level, "indent")?),
         };
     }
 
@@ -129,16 +130,8 @@ pub fn parse_hex_color(color: &str) -> WriteResult<Color> {
         .map_err(|_| WriteError::new(format!("invalid color {color:?}")))
 }
 
-fn font_size(size: f64) -> WriteResult<f64> {
-    if size > 0.0 && size.is_finite() {
-        Ok(size)
-    } else {
-        Err(WriteError::new(format!(
-            "font size {size} must be greater than 0"
-        )))
-    }
-}
-
+/// rust_xlsxwriter prints a warning to stderr and ignores any other angle, so
+/// hand-built terms are rejected here as well as by `XlsxWriter.Validation`.
 fn rotation(angle: i64) -> WriteResult<i16> {
     match angle {
         -90..=90 | 270 => Ok(angle as i16),
@@ -146,11 +139,6 @@ fn rotation(angle: i64) -> WriteResult<i16> {
             "rotation {angle} must be between -90 and 90, or 270"
         ))),
     }
-}
-
-fn indent(level: i64) -> WriteResult<u8> {
-    u8::try_from(level)
-        .map_err(|_| WriteError::new(format!("indent {level} is outside the range 0..255")))
 }
 
 fn border_style(style: &BorderStyle) -> FormatBorder {
@@ -202,23 +190,12 @@ mod tests {
     }
 
     #[test]
-    fn checks_font_size() {
-        assert_eq!(font_size(11.5), Ok(11.5));
-        assert!(font_size(0.0).is_err());
-        assert_eq!(font_size(500.0), Ok(500.0));
-    }
-
-    #[test]
-    fn checks_rotation_and_indent() {
+    fn checks_rotation() {
         assert_eq!(rotation(-90), Ok(-90));
         assert_eq!(rotation(90), Ok(90));
         assert_eq!(rotation(270), Ok(270));
         assert!(rotation(91).is_err());
         assert!(rotation(65_536 + 45).is_err());
-
-        assert_eq!(indent(255), Ok(255));
-        assert!(indent(256).is_err());
-        assert!(indent(-1).is_err());
     }
 
     #[test]

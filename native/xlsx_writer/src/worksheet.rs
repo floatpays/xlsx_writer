@@ -4,9 +4,12 @@ use rust_xlsxwriter::{ExcelDateTime, Format, Formula, Image, Note, Url, Workshee
 
 use crate::error::{WriteError, WriteResult};
 use crate::format::{apply_formats, cell_format, parse_hex_color};
-use crate::protocol::{column_number, row_number, CellData, CellFormat, Instruction, NoteOptions};
+use crate::protocol::{
+    column_number, finite, row_number, CellData, CellFormat, Instruction, NoteOptions,
+};
 
-/// Excel's maximum length of a comment author name.
+/// rust_xlsxwriter prints a warning to stderr and drops longer author names, so
+/// hand-built terms are rejected here as well as by `XlsxWriter.Validation`.
 const MAX_AUTHOR_LENGTH: usize = 52;
 
 /// Per-sheet state that has to be applied after all instructions.
@@ -46,30 +49,24 @@ pub fn apply_instruction(
         }
         Instruction::SetColumnWidth(column, width) => {
             let column = column_number(column)?;
-            let width = column_width(width)?;
+            let width = finite(width, "column width")?;
             worksheet.set_column_width(column, width)?;
             state.column_widths.push((column, column, width));
         }
         Instruction::SetColumnRangeWidth(first_column, last_column, width) => {
             let first_column = column_number(first_column)?;
             let last_column = column_number(last_column)?;
-            let width = column_width(width)?;
+            let width = finite(width, "column width")?;
             worksheet.set_column_range_width(first_column, last_column, width)?;
             state.column_widths.push((first_column, last_column, width));
         }
         Instruction::SetRowHeight(row, height) => {
-            worksheet.set_row_height(row_number(row)?, row_height(height)?)?;
+            worksheet.set_row_height(row_number(row)?, finite(height, "row height")?)?;
         }
         Instruction::SetRowRangeHeight(first_row, last_row, height) => {
             let first_row = row_number(first_row)?;
             let last_row = row_number(last_row)?;
-            let height = row_height(height)?;
-
-            if first_row > last_row {
-                return Err(WriteError::new(format!(
-                    "first row {first_row} is after last row {last_row}"
-                )));
-            }
+            let height = finite(height, "row height")?;
 
             for row in first_row..=last_row {
                 worksheet.set_row_height(row, height)?;
@@ -136,11 +133,11 @@ fn build_note(text: &str, options: NoteOptions) -> WriteResult<Note> {
     }
 
     if let Some(width) = options.width {
-        note = note.set_width(note_size(width, "width")?);
+        note = note.set_width(note_size(width, "comment width")?);
     }
 
     if let Some(height) = options.height {
-        note = note.set_height(note_size(height, "height")?);
+        note = note.set_height(note_size(height, "comment height")?);
     }
 
     Ok(note)
@@ -269,34 +266,14 @@ fn write_rich_string(
     Ok(())
 }
 
-fn size(value: f64, name: &str) -> WriteResult<f64> {
-    if value.is_finite() && value >= 0.0 {
-        Ok(value)
-    } else {
-        Err(WriteError::new(format!(
-            "{name} {value} must be a non-negative number"
-        )))
-    }
-}
-
-fn column_width(width: f64) -> WriteResult<f64> {
-    size(width, "column width")
-}
-
-fn row_height(height: f64) -> WriteResult<f64> {
-    size(height, "row height")
-}
-
-/// Comment box sizes are whole pixels of at least 1 (rust_xlsxwriter ignores 0).
+/// Comment box sizes are whole pixels.
 fn note_size(value: f64, name: &str) -> WriteResult<u32> {
-    let rounded = value.round();
+    let rounded = finite(value, name)?.round();
 
-    if value.is_finite() && rounded >= 1.0 && rounded <= f64::from(u32::MAX) {
+    if (0.0..=f64::from(u32::MAX)).contains(&rounded) {
         Ok(rounded as u32)
     } else {
-        Err(WriteError::new(format!(
-            "comment {name} {value} must be a number of pixels >= 1"
-        )))
+        Err(WriteError::new(format!("{name} {value} is out of range")))
     }
 }
 
@@ -305,18 +282,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn checks_sizes() {
-        assert_eq!(column_width(25.5), Ok(25.5));
-        assert!(column_width(-1.0).is_err());
-        assert_eq!(column_width(300.0), Ok(300.0));
-        assert!(column_width(f64::NAN).is_err());
-
-        assert_eq!(row_height(30.0), Ok(30.0));
-        assert_eq!(row_height(500.0), Ok(500.0));
-        assert!(row_height(-1.0).is_err());
-
+    fn rounds_comment_sizes_to_pixels() {
         assert_eq!(note_size(100.4, "width"), Ok(100));
-        assert!(note_size(0.2, "width").is_err());
+        assert_eq!(note_size(0.6, "width"), Ok(1));
+        assert!(note_size(-1.0, "width").is_err());
+        assert!(note_size(f64::from(u32::MAX) + 1.0, "width").is_err());
         assert!(note_size(f64::INFINITY, "width").is_err());
     }
 }
