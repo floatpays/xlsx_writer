@@ -1,3 +1,21 @@
+# v0.10.4
+
+## bug fixes
+
+- `write_formula/5` with `format:` now applies the format when the formula uses a dynamic array function (e.g. `FILTER`, `UNIQUE`, `SORT`). Previously the format was silently dropped (`rust_xlsxwriter` 0.99.1, [issue #190](https://github.com/jmcnamara/rust_xlsxwriter/issues/190)).
+
+## improvements
+
+- Update `rust_xlsxwriter` from 0.99.0 to 0.99.1. Besides the fix above, the release is internal clippy refactors with no behaviour change.
+  - Verified that generated workbooks are unchanged: every example in `examples/` was generated against both the old and new dependencies, and the unzipped workbook XML was byte-identical. The only differences were the creation timestamp in `docProps/core.xml` and the random cell values in `large_dataset`.
+- Update cargo transitive dependencies (cfg-if, crc32fast, equivalent, flate2, indexmap, inventory, libc, unicode-ident, zlib-rs, zopfli). `miniz_oxide` and `adler2` drop out of the lockfile.
+- flate2 1.1.10 moved zlib-rs runtime CPU feature detection (SIMD) behind a new default feature, which `zip` disables. `flate2` is now listed directly in `Cargo.toml` with `runtime_detection` enabled, so compression keeps using SIMD. The backend is still zlib-rs.
+- `rustler` stays on 0.38.0: crate 0.39.0 is out, but the hex package is still 0.38.0 and the two must match.
+- Tested against `rustler_precompiled` 0.10.0 (allowed by the existing `~> 0.8` constraint; adds NIF 2.18 / OTP 29 support, with no change to the options or checksum format this library uses) and `decimal` 3.2.0 (fixes `Decimal.to_float/1` for odd integers between 2^52 and 2^53, which `write/4` uses for `Decimal` values).
+- Update mix dev-only dependencies (`ex_doc` 0.40.4, `igniter` 0.8.4) and their transitives (ex_ast, finch, hpax, makeup, mint, req, sourceror, spitfire). Drop the stale `toml` lock entry, which no environment resolved.
+- Remove the unused `dialyxir` dev/test dependency.
+- CI: update actions to their current major versions.
+
 # v0.10.3
 
 ## improvements
