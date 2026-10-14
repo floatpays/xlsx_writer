@@ -27,8 +27,10 @@ defmodule XlsxWriter.MixProject do
   defp deps do
     [
       {:decimal, "~> 2.0 or ~> 3.0"},
-      {:rustler_precompiled, "~> 0.8"},
-      {:rustler, "~> 0.38.0", optional: true, runtime: false},
+      {:rustler_precompiled, "~> 0.10"},
+      # Only needed to build the NIF from source. mix.lock pins the version
+      # that matches the crate in native/xlsx_writer/Cargo.toml.
+      {:rustler, ">= 0.0.0", optional: true},
 
       # Dev tools
       {:credo, "~> 1.4", only: [:dev], runtime: false},
