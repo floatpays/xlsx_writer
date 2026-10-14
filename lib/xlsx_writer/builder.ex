@@ -119,17 +119,13 @@ defmodule XlsxWriter.Builder do
   ## Parameters
 
   - `builder` - The builder state
-  - `sheet_name` - Name of the new sheet. Must not match an existing sheet
-    name; like Excel, the comparison ignores case.
+  - `sheet_name` - Name of the new sheet. Like Excel, sheet names must be
+    unique ignoring case; a duplicate makes `write_binary/1` return an error.
   - `opts` - Optional keyword list (reserved for future use)
 
   ## Returns
 
   Updated builder state with the new sheet active.
-
-  ## Raises
-
-  `ArgumentError` if a sheet with the same name was already added.
 
   ## Examples
 
@@ -140,19 +136,9 @@ defmodule XlsxWriter.Builder do
       iex> builder.current_sheet
       "Details"
 
-      iex> XlsxWriter.Builder.create()
-      ...> |> XlsxWriter.Builder.add_sheet("Summary")
-      ...> |> XlsxWriter.Builder.add_sheet("summary")
-      ** (ArgumentError) A sheet named "summary" already exists (sheet names are case-insensitive)
-
   """
   def add_sheet(%__MODULE__{} = builder, sheet_name, _opts \\ [])
       when is_binary(sheet_name) do
-    if sheet_name_taken?(builder, sheet_name) do
-      raise ArgumentError,
-            "A sheet named #{inspect(sheet_name)} already exists (sheet names are case-insensitive)"
-    end
-
     builder = finalize_current_sheet(builder)
 
     %{
@@ -334,20 +320,6 @@ defmodule XlsxWriter.Builder do
   end
 
   # Private functions
-
-  defp sheet_name_taken?(builder, sheet_name) do
-    downcased_name = String.downcase(sheet_name)
-
-    builder
-    |> sheet_names()
-    |> Enum.any?(&(String.downcase(&1) == downcased_name))
-  end
-
-  defp sheet_names(%__MODULE__{current_sheet: nil, sheets: sheets}),
-    do: Enum.map(sheets, &elem(&1, 0))
-
-  defp sheet_names(%__MODULE__{current_sheet: current_sheet, sheets: sheets}),
-    do: [current_sheet | Enum.map(sheets, &elem(&1, 0))]
 
   # Moves the active sheet, with its column widths, into the completed sheets.
   defp finalize_current_sheet(%__MODULE__{current_sheet: nil} = builder),

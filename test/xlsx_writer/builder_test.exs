@@ -44,18 +44,24 @@ defmodule XlsxWriter.BuilderTest do
       refute xlsx_part(content, "xl/worksheets/sheet3.xml")
     end
 
-    test "raises when a sheet name is already used, ignoring case" do
+    test "a duplicate sheet name, ignoring case, is reported by write_binary/1" do
       builder =
         Builder.create()
         |> Builder.add_sheet("Data")
         |> Builder.add_rows([["first"]])
-        |> Builder.add_sheet("Other")
+        |> Builder.add_sheet("DATA")
+        |> Builder.add_rows([["second"], ["third"]])
 
-      for name <- ["Data", "DATA", "Other"] do
-        assert_raise ArgumentError,
-                     "A sheet named #{inspect(name)} already exists (sheet names are case-insensitive)",
-                     fn -> Builder.add_sheet(builder, name) end
-      end
+      assert Builder.write_binary(builder) ==
+               {:error,
+                "Worksheet name 'data' has already been used in this workbook."}
+
+      # Each sheet only holds its own rows.
+      %Builder{sheets: [{"DATA", second_sheet}, {"Data", first_sheet}]} =
+        Builder.add_sheet(builder, "Last")
+
+      assert length(first_sheet) == 1
+      assert length(second_sheet) == 2
     end
 
     test "rows only go to the active sheet" do
