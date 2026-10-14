@@ -44,6 +44,7 @@ defmodule XlsxWriter.MixProject do
         "lib",
         "mix.exs",
         "README*",
+        "CHANGELOG*",
         "LICENSE*",
         "native/xlsx_writer/.cargo",
         "native/xlsx_writer/src",
@@ -52,7 +53,10 @@ defmodule XlsxWriter.MixProject do
       ],
       maintainers: ["Wilhelm H Kirschbaum", "Willem Odendaal"],
       licenses: ["MIT"],
-      links: %{"GitHub" => @github_url}
+      links: %{
+        "GitHub" => @github_url,
+        "Changelog" => "#{@github_url}/blob/main/CHANGELOG.md"
+      }
     ]
   end
 
@@ -67,7 +71,8 @@ defmodule XlsxWriter.MixProject do
         "guides/getting_started.md",
         "guides/builder_api.md",
         "guides/formatting.md",
-        "guides/layout_features.md"
+        "guides/layout_features.md",
+        "CHANGELOG.md"
       ],
       groups_for_extras: [
         Guides: ~r/guides\/.*/
