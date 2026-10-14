@@ -14,15 +14,20 @@ defmodule XlsxWriter.Builder do
 
   ## Quick Example
 
-      XlsxWriter.Builder.create()
-      |> XlsxWriter.Builder.add_sheet("Summary")
-      |> XlsxWriter.Builder.add_rows([
-        [{"Q1", format: [:bold]}, {"Q2", format: [:bold]}, {"Q3", format: [:bold]}],
-        [100, 200, 300]
-      ])
-      |> XlsxWriter.Builder.skip_rows(1)
-      |> XlsxWriter.Builder.add_rows([["Total", {600, format: [:italic]}]])
-      |> XlsxWriter.Builder.write_file("output.xlsx")
+      iex> {:ok, content} =
+      ...>   XlsxWriter.Builder.create()
+      ...>   |> XlsxWriter.Builder.add_sheet("Summary")
+      ...>   |> XlsxWriter.Builder.add_rows([
+      ...>     [{"Q1", format: [:bold]}, {"Q2", format: [:bold]}, {"Q3", format: [:bold]}],
+      ...>     [100, 200, 300]
+      ...>   ])
+      ...>   |> XlsxWriter.Builder.skip_rows(1)
+      ...>   |> XlsxWriter.Builder.add_rows([["Total", {600, format: [:italic]}]])
+      ...>   |> XlsxWriter.Builder.write_binary()
+      iex> binary_part(content, 0, 2)
+      "PK"
+
+  Use `write_file/2` instead of `write_binary/1` to write the workbook to disk.
 
   ## Features
 
@@ -36,8 +41,11 @@ defmodule XlsxWriter.Builder do
 
   Each cell can be either a plain value or a tuple `{value, opts}` where opts include:
 
-  - `width: number` - Column width (applies to entire column) - Builder-specific
+  - `width: number` - Column width in character units, integer or float
+    (applies to entire column) - Builder-specific
   - `format: list` - List of XlsxWriter format options (see below)
+
+  Any other option raises `ArgumentError`.
 
   The `format` option accepts the same format list as `XlsxWriter.write/5`:
 
@@ -53,6 +61,9 @@ defmodule XlsxWriter.Builder do
   """
 
   alias XlsxWriter
+  alias XlsxWriter.Validation
+
+  @cell_options [:format, :width]
 
   @type cell_value :: any()
   @type cell_with_format :: {cell_value(), keyword()}
@@ -108,22 +119,40 @@ defmodule XlsxWriter.Builder do
   ## Parameters
 
   - `builder` - The builder state
-  - `sheet_name` - Name of the new sheet
+  - `sheet_name` - Name of the new sheet. Must not match an existing sheet
+    name; like Excel, the comparison ignores case.
   - `opts` - Optional keyword list (reserved for future use)
 
   ## Returns
 
   Updated builder state with the new sheet active.
 
+  ## Raises
+
+  `ArgumentError` if a sheet with the same name was already added.
+
   ## Examples
 
-      builder
-      |> XlsxWriter.Builder.add_sheet("Summary")
-      |> XlsxWriter.Builder.add_sheet("Details")
+      iex> builder =
+      ...>   XlsxWriter.Builder.create()
+      ...>   |> XlsxWriter.Builder.add_sheet("Summary")
+      ...>   |> XlsxWriter.Builder.add_sheet("Details")
+      iex> builder.current_sheet
+      "Details"
+
+      iex> XlsxWriter.Builder.create()
+      ...> |> XlsxWriter.Builder.add_sheet("Summary")
+      ...> |> XlsxWriter.Builder.add_sheet("summary")
+      ** (ArgumentError) A sheet named "summary" already exists (sheet names are case-insensitive)
 
   """
   def add_sheet(%__MODULE__{} = builder, sheet_name, _opts \\ [])
       when is_binary(sheet_name) do
+    if sheet_name_taken?(builder, sheet_name) do
+      raise ArgumentError,
+            "A sheet named #{inspect(sheet_name)} already exists (sheet names are case-insensitive)"
+    end
+
     builder = finalize_current_sheet(builder)
 
     %{
@@ -154,26 +183,35 @@ defmodule XlsxWriter.Builder do
 
   Updated builder state with cursor moved after the last row.
 
+  ## Raises
+
+  `ArgumentError` if no sheet was added, a cell has an unknown option, or a
+  value, position or format is invalid (see `XlsxWriter.write/5`).
+
   ## Examples
 
-      # Simple rows
-      builder
-      |> XlsxWriter.Builder.add_rows([
-        ["Name", "Age", "City"],
-        ["Alice", 30, "NYC"],
-        ["Bob", 25, "LA"]
-      ])
+      iex> builder =
+      ...>   XlsxWriter.Builder.create()
+      ...>   |> XlsxWriter.Builder.add_sheet("People")
+      ...>   |> XlsxWriter.Builder.add_rows([
+      ...>     [{"Name", format: [:bold]}, {"Age", format: [:bold]}],
+      ...>     ["Alice", {30, format: [{:num_format, "0"}]}],
+      ...>     ["Bob", 25]
+      ...>   ])
+      iex> {builder.cursor_row, builder.cursor_col}
+      {3, 0}
 
-      # With formatting
-      builder
-      |> XlsxWriter.Builder.add_rows([
-        [{"Name", format: [:bold]}, {"Age", format: [:bold]}],
-        ["Alice", {30, format: [{:num_format, "0"}]}]
-      ])
+      iex> builder =
+      ...>   XlsxWriter.Builder.create()
+      ...>   |> XlsxWriter.Builder.add_sheet("Positioned")
+      ...>   |> XlsxWriter.Builder.add_rows([["Data"]], start_row: 5, start_col: 2)
+      iex> {builder.cursor_row, builder.cursor_col}
+      {6, 2}
 
-      # With position override
-      builder
-      |> XlsxWriter.Builder.add_rows([["Data"]], start_row: 5, start_col: 2)
+      iex> XlsxWriter.Builder.create()
+      ...> |> XlsxWriter.Builder.add_sheet("Typo")
+      ...> |> XlsxWriter.Builder.add_rows([[{"x", formats: [:bold]}]])
+      ** (ArgumentError) Unknown cell option :formats in {"x", [formats: [:bold]]}, expected one of [:format, :width]
 
   """
   def add_rows(builder, rows, opts \\ [])
@@ -210,10 +248,14 @@ defmodule XlsxWriter.Builder do
 
   ## Examples
 
-      builder
-      |> XlsxWriter.Builder.add_rows([["Section 1"]])
-      |> XlsxWriter.Builder.skip_rows(2)
-      |> XlsxWriter.Builder.add_rows([["Section 2"]])
+      iex> builder =
+      ...>   XlsxWriter.Builder.create()
+      ...>   |> XlsxWriter.Builder.add_sheet("Sections")
+      ...>   |> XlsxWriter.Builder.add_rows([["Section 1"]])
+      ...>   |> XlsxWriter.Builder.skip_rows(2)
+      ...>   |> XlsxWriter.Builder.add_rows([["Section 2"]])
+      iex> builder.cursor_row
+      4
 
   """
   def skip_rows(%__MODULE__{} = builder, n \\ 1) when is_integer(n) and n > 0 do
@@ -236,8 +278,16 @@ defmodule XlsxWriter.Builder do
 
   ## Examples
 
-      {:ok, content} = builder |> XlsxWriter.Builder.write_binary()
-      File.write!("output.xlsx", content)
+      iex> {:ok, content} =
+      ...>   XlsxWriter.Builder.create()
+      ...>   |> XlsxWriter.Builder.add_sheet("Data")
+      ...>   |> XlsxWriter.Builder.add_rows([["Hello", "World"]])
+      ...>   |> XlsxWriter.Builder.write_binary()
+      iex> is_binary(content)
+      true
+
+      iex> XlsxWriter.Builder.create() |> XlsxWriter.Builder.write_binary()
+      {:error, "No sheets added. Use add_sheet/2 to add at least one sheet."}
 
   """
   def write_binary(%__MODULE__{} = builder) do
@@ -255,7 +305,7 @@ defmodule XlsxWriter.Builder do
   @doc """
   Generates the final Excel file and writes it to disk.
 
-  Convenience function that combines `write_binary/1` and `File.write!/2`.
+  Convenience function that combines `write_binary/1` and `File.write/2`.
 
   ## Parameters
 
@@ -265,31 +315,44 @@ defmodule XlsxWriter.Builder do
   ## Returns
 
   - `:ok` on success
-  - `{:error, reason}` on failure
+  - `{:error, reason}` on failure: the reason from `write_binary/1`, or a
+    `File.write/2` reason such as `:enoent` if the file cannot be written
 
   ## Examples
 
       builder |> XlsxWriter.Builder.write_file("output.xlsx")
-      builder |> XlsxWriter.Builder.write_file("reports/sales.xlsx")
+      #=> :ok
+
+      builder |> XlsxWriter.Builder.write_file("missing_directory/sales.xlsx")
+      #=> {:error, :enoent}
 
   """
   def write_file(%__MODULE__{} = builder, path) when is_binary(path) do
-    case write_binary(builder) do
-      {:ok, content} ->
-        File.write!(path, content)
-        :ok
-
-      {:error, reason} ->
-        {:error, reason}
+    with {:ok, content} <- write_binary(builder) do
+      File.write(path, content)
     end
   end
 
   # Private functions
 
+  defp sheet_name_taken?(builder, sheet_name) do
+    downcased_name = String.downcase(sheet_name)
+
+    builder
+    |> sheet_names()
+    |> Enum.any?(&(String.downcase(&1) == downcased_name))
+  end
+
+  defp sheet_names(%__MODULE__{current_sheet: nil, sheets: sheets}),
+    do: Enum.map(sheets, &elem(&1, 0))
+
+  defp sheet_names(%__MODULE__{current_sheet: current_sheet, sheets: sheets}),
+    do: [current_sheet | Enum.map(sheets, &elem(&1, 0))]
+
+  # Moves the active sheet, with its column widths, into the completed sheets.
   defp finalize_current_sheet(%__MODULE__{current_sheet: nil} = builder),
     do: builder
 
-  # Moves the active sheet, with its column widths, into the completed sheets.
   defp finalize_current_sheet(%__MODULE__{} = builder) do
     width_instructions =
       Enum.map(builder.column_widths, fn {col, width} ->
@@ -316,29 +379,49 @@ defmodule XlsxWriter.Builder do
     end)
   end
 
-  defp write_cell(builder, row, col, {value, opts}) when is_list(opts) do
-    # Extract Builder-specific options
-    {width, remaining_opts} = Keyword.pop(opts, :width)
-    {format, _remaining_opts} = Keyword.pop(remaining_opts, :format, [])
+  defp write_cell(builder, row, col, {value, opts} = cell) when is_list(opts) do
+    validate_cell_options!(cell, opts)
 
     builder =
-      if width do
-        put_in(builder.column_widths[col], width)
-      else
-        builder
+      case Keyword.fetch(opts, :width) do
+        {:ok, width} ->
+          Validation.validate_column!(col)
+          Validation.validate_column_width!(width)
+          put_in(builder.column_widths[col], width)
+
+        :error ->
+          builder
       end
 
-    # Pass format list directly to XlsxWriter
-    add_write_instruction(builder, row, col, value, format)
+    add_write_instruction(
+      builder,
+      row,
+      col,
+      value,
+      Keyword.get(opts, :format, [])
+    )
   end
 
   defp write_cell(builder, row, col, value) do
-    # Plain value without formatting
     add_write_instruction(builder, row, col, value, [])
   end
 
-  # Prepends to the active sheet's instructions only, instead of rewriting
-  # every sheet for every cell.
+  defp validate_cell_options!(cell, opts) do
+    if !Keyword.keyword?(opts) do
+      raise ArgumentError,
+            "Cell options must be a keyword list, got: #{inspect(cell)}"
+    end
+
+    case Keyword.keys(opts) -- @cell_options do
+      [] ->
+        :ok
+
+      [unknown_option | _] ->
+        raise ArgumentError,
+              "Unknown cell option #{inspect(unknown_option)} in #{inspect(cell)}, expected one of #{inspect(@cell_options)}"
+    end
+  end
+
   defp add_write_instruction(builder, row, col, value, format) do
     {_name, instructions} =
       XlsxWriter.write(

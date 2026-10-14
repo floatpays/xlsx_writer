@@ -5,6 +5,8 @@ defmodule XlsxWriter.BuilderTest do
 
   alias XlsxWriter.Builder
 
+  doctest XlsxWriter.Builder
+
   describe "create/0" do
     test "creates a new builder" do
       builder = Builder.create()
@@ -40,6 +42,38 @@ defmodule XlsxWriter.BuilderTest do
       assert xlsx_part(content, "xl/worksheets/sheet1.xml")
       assert xlsx_part(content, "xl/worksheets/sheet2.xml")
       refute xlsx_part(content, "xl/worksheets/sheet3.xml")
+    end
+
+    test "raises when a sheet name is already used, ignoring case" do
+      builder =
+        Builder.create()
+        |> Builder.add_sheet("Data")
+        |> Builder.add_rows([["first"]])
+        |> Builder.add_sheet("Other")
+
+      for name <- ["Data", "DATA", "Other"] do
+        assert_raise ArgumentError,
+                     "A sheet named #{inspect(name)} already exists (sheet names are case-insensitive)",
+                     fn -> Builder.add_sheet(builder, name) end
+      end
+    end
+
+    test "rows only go to the active sheet" do
+      {:ok, content} =
+        Builder.create()
+        |> Builder.add_sheet("First")
+        |> Builder.add_rows([["first"]])
+        |> Builder.add_sheet("Second")
+        |> Builder.add_rows([["second"]])
+        |> Builder.write_binary()
+
+      shared_strings = xlsx_part(content, "xl/sharedStrings.xml")
+
+      assert xlsx_part(content, "xl/worksheets/sheet1.xml") =~
+               ~s(<c r="A1" t="s"><v>#{shared_string_index(shared_strings, "first")}</v>)
+
+      assert xlsx_part(content, "xl/worksheets/sheet2.xml") =~
+               ~s(<c r="A1" t="s"><v>#{shared_string_index(shared_strings, "second")}</v>)
     end
 
     test "resets cursor when switching sheets" do
@@ -159,6 +193,62 @@ defmodule XlsxWriter.BuilderTest do
       assert builder.column_widths[0] == 30
     end
 
+    test "accepts fractional column widths" do
+      {:ok, content} =
+        Builder.create()
+        |> Builder.add_sheet("Sheet1")
+        |> Builder.add_rows([[{"x", width: 12.5}, {"y", width: 20}]])
+        |> Builder.write_binary()
+
+      sheet_xml = xlsx_part(content, "xl/worksheets/sheet1.xml")
+
+      assert sheet_xml =~
+               ~s(<col min="1" max="1" width="13.28515625" customWidth="1"/>)
+
+      assert sheet_xml =~
+               ~s(<col min="2" max="2" width="20.7109375" customWidth="1"/>)
+    end
+
+    test "raises for an invalid column width" do
+      for width <- [-1, 256, "wide"] do
+        assert_raise ArgumentError, ~r/Column width must be a number/, fn ->
+          Builder.create()
+          |> Builder.add_sheet("Sheet1")
+          |> Builder.add_rows([[{"x", width: width}]])
+        end
+      end
+    end
+
+    test "raises for unknown cell options instead of ignoring them" do
+      assert_raise ArgumentError,
+                   ~s(Unknown cell option :formats in {"x", [formats: [:bold]]}, expected one of [:format, :width]),
+                   fn ->
+                     Builder.create()
+                     |> Builder.add_sheet("Sheet1")
+                     |> Builder.add_rows([[{"x", formats: [:bold]}]])
+                   end
+    end
+
+    test "raises for cell options that are not a keyword list" do
+      assert_raise ArgumentError, ~r/Cell options must be a keyword list/, fn ->
+        Builder.create()
+        |> Builder.add_sheet("Sheet1")
+        |> Builder.add_rows([[{"x", [:bold]}]])
+      end
+    end
+
+    test "raises for invalid formats at call time" do
+      assert_raise ArgumentError,
+                   ~r/:bg_color expects a string hex color/,
+                   fn ->
+                     Builder.create()
+                     |> Builder.add_sheet("Sheet1")
+                     |> Builder.add_rows([
+                       [{"x", format: [{:bg_color, "red"}]}]
+                     ])
+                   end
+    end
+
     test "writes multiple cells with different formats" do
       builder =
         Builder.create()
@@ -242,6 +332,30 @@ defmodule XlsxWriter.BuilderTest do
   end
 
   describe "write_file/2" do
+    @tag :tmp_dir
+    test "returns an error tuple when the file cannot be written", %{
+      tmp_dir: dir
+    } do
+      path = Path.join([dir, "missing_directory", "output.xlsx"])
+
+      result =
+        Builder.create()
+        |> Builder.add_sheet("Test")
+        |> Builder.write_file(path)
+
+      assert result == {:error, :enoent}
+    end
+
+    @tag :tmp_dir
+    test "returns the generation error without writing a file", %{tmp_dir: dir} do
+      path = Path.join(dir, "output.xlsx")
+
+      assert {:error, "No sheets added" <> _} =
+               Builder.write_file(Builder.create(), path)
+
+      refute File.exists?(path)
+    end
+
     @tag :tmp_dir
     test "writes XLSX file to disk", %{tmp_dir: dir} do
       path = Path.join(dir, "output.xlsx")
@@ -352,23 +466,35 @@ defmodule XlsxWriter.BuilderTest do
       assert builder.column_widths[0] == 20
       assert builder.column_widths[1] == 30
 
-      # Ensure it generates successfully
       {:ok, content} = Builder.write_binary(builder)
-      assert is_binary(content)
+      sheet_xml = xlsx_part(content, "xl/worksheets/sheet1.xml")
+      assert sheet_xml =~ ~s(<col min="1" max="1" width="20.7109375")
+      assert sheet_xml =~ ~s(<col min="2" max="2" width="30.7109375")
     end
+  end
+
+  defp shared_string_index(shared_strings, text) do
+    ~r{<si>(.*?)</si>}
+    |> Regex.scan(shared_strings, capture: :all_but_first)
+    |> Enum.find_index(&(&1 == ["<t>#{text}</t>"]))
   end
 
   describe "format option conversions" do
     test "converts bold option correctly" do
-      {:ok, _content} =
+      {:ok, content} =
         Builder.create()
         |> Builder.add_sheet("Test")
         |> Builder.add_rows([[{"Bold", format: [:bold]}]])
         |> Builder.write_binary()
+
+      assert xlsx_part(content, "xl/styles.xml") =~ "<b/>"
+
+      assert xlsx_part(content, "xl/worksheets/sheet1.xml") =~
+               ~s(<c r="A1" s="1" t="s">)
     end
 
     test "converts multiple format options" do
-      {:ok, _content} =
+      {:ok, content} =
         Builder.create()
         |> Builder.add_sheet("Test")
         |> Builder.add_rows([
@@ -386,10 +512,14 @@ defmodule XlsxWriter.BuilderTest do
           ]
         ])
         |> Builder.write_binary()
+
+      styles = xlsx_part(content, "xl/styles.xml")
+      assert styles =~ ~s(<b/><i/><sz val="14"/><color rgb="FFFF0000"/>)
+      assert styles =~ ~s(<fgColor rgb="FFFFFF00"/>)
     end
 
     test "handles alignment options" do
-      {:ok, _content} =
+      {:ok, content} =
         Builder.create()
         |> Builder.add_sheet("Test")
         |> Builder.add_rows([
@@ -400,10 +530,16 @@ defmodule XlsxWriter.BuilderTest do
           ]
         ])
         |> Builder.write_binary()
+
+      styles = xlsx_part(content, "xl/styles.xml")
+
+      for alignment <- ["left", "center", "right"] do
+        assert styles =~ ~s(<alignment horizontal="#{alignment}"/>)
+      end
     end
 
     test "handles border options" do
-      {:ok, _content} =
+      {:ok, content} =
         Builder.create()
         |> Builder.add_sheet("Test")
         |> Builder.add_rows([
@@ -413,6 +549,10 @@ defmodule XlsxWriter.BuilderTest do
           ]
         ])
         |> Builder.write_binary()
+
+      styles = xlsx_part(content, "xl/styles.xml")
+      assert styles =~ ~s(<left style="thin">)
+      assert styles =~ ~s(<top style="medium">)
     end
   end
 end
