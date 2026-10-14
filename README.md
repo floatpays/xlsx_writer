@@ -246,4 +246,4 @@ mix docs
 Copyright (c) 2022-2026 Wilhelm H Kirschbaum
 
 This work is free. You can redistribute it and/or modify it under the
-terms of the MIT License. See the [LICENSE.md](./LICENSE.md) file for more details.
+terms of the MIT License. See the [LICENSE](./LICENSE) file for more details.

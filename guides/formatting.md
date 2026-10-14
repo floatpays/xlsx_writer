@@ -294,3 +294,15 @@ File.write!("combined.xlsx", content)
 | | `{:valign, :justify}` | `format: [{:valign, :justify}]` |
 | | `{:valign, :distributed}` | `format: [{:valign, :distributed}]` |
 | **Numbers** | `{:num_format, "format_string"}` | `format: [{:num_format, "$#,##0.00"}]` |
+
+### Accepted values
+
+Format options are checked when the instruction is added, and an unknown option
+or an invalid value raises `ArgumentError` (nothing is silently ignored):
+
+- Colors (`:font_color`, `:bg_color`, `:border_*color`) are hex strings
+  `"#RRGGBB"`, case-insensitive; the `#` is optional. Short forms like `"#FFF"`,
+  names like `"red"` and 8-digit values raise.
+- `{:font_size, points}` takes an integer or float greater than 0 and at most 409.
+- `{:rotation, angle}` takes an integer from -90 to 90, or 270 for stacked text.
+- `{:indent, level}` takes an integer from 0 to 250.
