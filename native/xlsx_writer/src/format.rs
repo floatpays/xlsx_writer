@@ -9,11 +9,6 @@ use crate::protocol::{
     BorderStyle, CellAlignPos, CellData, CellFormat, CellPattern, CellVAlignPos, UnderlineStyle,
 };
 
-/// Excel's maximum font size, in points.
-const MAX_FONT_SIZE: f64 = 409.0;
-/// Excel's maximum indent level.
-const MAX_INDENT: u8 = 250;
-
 const DEFAULT_DATE_FORMAT: &str = "yyyy-mm-dd";
 const DEFAULT_DATE_TIME_FORMAT: &str = "yyyy-mm-ddThh:mm:ss";
 
@@ -135,15 +130,11 @@ pub fn parse_hex_color(color: &str) -> WriteResult<Color> {
 }
 
 fn font_size(size: f64) -> WriteResult<f64> {
-    if size <= 0.0 {
-        Err(WriteError::new(format!(
-            "font size {size} must be greater than 0"
-        )))
-    } else if size.is_finite() && size <= MAX_FONT_SIZE {
+    if size > 0.0 && size.is_finite() {
         Ok(size)
     } else {
         Err(WriteError::new(format!(
-            "font size {size} is outside Excel's range 0..{MAX_FONT_SIZE}"
+            "font size {size} must be greater than 0"
         )))
     }
 }
@@ -159,13 +150,7 @@ fn rotation(angle: i64) -> WriteResult<i16> {
 
 fn indent(level: i64) -> WriteResult<u8> {
     u8::try_from(level)
-        .ok()
-        .filter(|level| *level <= MAX_INDENT)
-        .ok_or_else(|| {
-            WriteError::new(format!(
-                "indent {level} is outside the range 0..{MAX_INDENT}"
-            ))
-        })
+        .map_err(|_| WriteError::new(format!("indent {level} is outside the range 0..255")))
 }
 
 fn border_style(style: &BorderStyle) -> FormatBorder {
@@ -220,7 +205,7 @@ mod tests {
     fn checks_font_size() {
         assert_eq!(font_size(11.5), Ok(11.5));
         assert!(font_size(0.0).is_err());
-        assert!(font_size(410.0).is_err());
+        assert_eq!(font_size(500.0), Ok(500.0));
     }
 
     #[test]
@@ -231,8 +216,8 @@ mod tests {
         assert!(rotation(91).is_err());
         assert!(rotation(65_536 + 45).is_err());
 
-        assert_eq!(indent(250), Ok(250));
-        assert!(indent(251).is_err());
+        assert_eq!(indent(255), Ok(255));
+        assert!(indent(256).is_err());
         assert!(indent(-1).is_err());
     }
 

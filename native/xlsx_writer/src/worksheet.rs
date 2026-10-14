@@ -6,10 +6,6 @@ use crate::error::{WriteError, WriteResult};
 use crate::format::{apply_formats, cell_format, parse_hex_color};
 use crate::protocol::{column_number, row_number, CellData, CellFormat, Instruction, NoteOptions};
 
-/// Excel's maximum column width, in character units.
-const MAX_COLUMN_WIDTH: f64 = 255.0;
-/// Excel's maximum row height, in points.
-const MAX_ROW_HEIGHT: f64 = 409.0;
 /// Excel's maximum length of a comment author name.
 const MAX_AUTHOR_LENGTH: usize = 52;
 
@@ -273,22 +269,22 @@ fn write_rich_string(
     Ok(())
 }
 
-fn bounded_size(value: f64, maximum: f64, name: &str) -> WriteResult<f64> {
-    if value.is_finite() && (0.0..=maximum).contains(&value) {
+fn size(value: f64, name: &str) -> WriteResult<f64> {
+    if value.is_finite() && value >= 0.0 {
         Ok(value)
     } else {
         Err(WriteError::new(format!(
-            "{name} {value} is outside Excel's range 0..{maximum}"
+            "{name} {value} must be a non-negative number"
         )))
     }
 }
 
 fn column_width(width: f64) -> WriteResult<f64> {
-    bounded_size(width, MAX_COLUMN_WIDTH, "column width")
+    size(width, "column width")
 }
 
 fn row_height(height: f64) -> WriteResult<f64> {
-    bounded_size(height, MAX_ROW_HEIGHT, "row height")
+    size(height, "row height")
 }
 
 /// Comment box sizes are whole pixels of at least 1 (rust_xlsxwriter ignores 0).
@@ -312,11 +308,12 @@ mod tests {
     fn checks_sizes() {
         assert_eq!(column_width(25.5), Ok(25.5));
         assert!(column_width(-1.0).is_err());
-        assert!(column_width(256.0).is_err());
+        assert_eq!(column_width(300.0), Ok(300.0));
         assert!(column_width(f64::NAN).is_err());
 
         assert_eq!(row_height(30.0), Ok(30.0));
-        assert!(row_height(409.5).is_err());
+        assert_eq!(row_height(500.0), Ok(500.0));
+        assert!(row_height(-1.0).is_err());
 
         assert_eq!(note_size(100.4, "width"), Ok(100));
         assert!(note_size(0.2, "width").is_err());

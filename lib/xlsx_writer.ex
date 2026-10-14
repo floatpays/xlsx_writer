@@ -161,13 +161,13 @@ defmodule XlsxWriter do
     - `:text_wrap` - Wrap text within the cell
     - `{:rotation, angle}` - Rotate text (integer, -90 to 90 degrees, or 270 for vertical stacked text)
     - `:shrink` - Shrink text to fit within the cell width
-    - `{:indent, level}` - Indent text by the given level (integer, 0 to 250)
+    - `{:indent, level}` - Indent text by the given level (integer, 0 to 255)
     - `{:align, :left | :center | :right}` - Horizontal text alignment
     - `{:valign, :top | :center | :bottom | :justify | :distributed}` - Vertical text alignment
     - `{:num_format, format_string}` - Custom number format
     - `{:bg_color, hex_color}` - Background color (e.g., "#FFFF00" for yellow)
     - `{:font_color, hex_color}` - Font color (e.g., "#FF0000" for red)
-    - `{:font_size, size}` - Font size in points, integer or float (e.g., 12, 10.5), greater than 0 and at most 409
+    - `{:font_size, size}` - Font size in points, integer or float (e.g., 12, 10.5), greater than 0
     - `{:font_name, name}` - Font family (e.g., "Arial", "Times New Roman")
     - `{:underline, :single | :double | :single_accounting | :double_accounting}` - Underline style
     - `{:pattern, :solid | :none | :gray125 | :gray0625}` - Fill pattern
@@ -493,10 +493,10 @@ defmodule XlsxWriter do
   - `col` - The column index (0-based)
   - `text` - The comment text content
   - `opts` - Optional keyword list:
-    - `:author` - Author name (string, max 52 characters)
+    - `:author` - Author name (string, at most 52 characters)
     - `:visible` - Whether to show the comment by default (boolean, default: false)
-    - `:width` - Comment box width in pixels (number >= 1, rounded to whole pixels, default: 128)
-    - `:height` - Comment box height in pixels (number >= 1, rounded to whole pixels, default: 74)
+    - `:width` - Comment box width in pixels (number, rounded to whole pixels, at least 1, default: 128)
+    - `:height` - Comment box height in pixels (number, rounded to whole pixels, at least 1, default: 74)
 
   ## Returns
 
@@ -552,8 +552,8 @@ defmodule XlsxWriter do
 
   - `sheet` - The sheet tuple `{name, instructions}`
   - `col` - The column index (0-based)
-  - `width` - The width in Excel character units, an integer or float
-    between 0 and 255
+  - `width` - The width in Excel character units, a non-negative integer or
+    float (Excel caps it at 255; 0 hides the column)
 
   ## Returns
 
@@ -584,7 +584,8 @@ defmodule XlsxWriter do
 
   - `sheet` - The sheet tuple `{name, instructions}`
   - `row` - The row index (0-based)
-  - `height` - The height in points, an integer or float between 0 and 409
+  - `height` - The height in points, a non-negative integer or float (0 hides
+    the row)
 
   ## Returns
 

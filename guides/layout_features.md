@@ -170,9 +170,10 @@ sheet = XlsxWriter.new_sheet("Range Sizing")
 File.write!("range_sizing.xlsx", content)
 ```
 
-Column widths are in Excel character units (0 to 255) and row heights are in
-points (0 to 409), matching what Excel shows in its Column Width and Row Height
-dialogs. Values outside those ranges raise `ArgumentError`.
+Column widths are in Excel character units and row heights are in points,
+matching what Excel shows in its Column Width and Row Height dialogs. Both take
+non-negative integers or floats; negative values raise `ArgumentError`. Column
+widths above 255 are capped at 255, Excel's maximum.
 
 **Benefits of range operations:**
 - More efficient than setting each column/row individually

@@ -1017,13 +1017,13 @@ defmodule XlsxWriterTest do
                    end
     end
 
-    test "raises for a font size above Excel's maximum of 409" do
+    test "raises for a negative font size" do
       assert_raise ArgumentError,
-                   ~r/:font_size .* at most 409, got: 1000/,
+                   ~r/:font_size expects a number greater than 0, got: -1/,
                    fn ->
                      XlsxWriter.new_sheet("Test")
                      |> XlsxWriter.write(0, 0, "Text",
-                       format: [{:font_size, 1000}]
+                       format: [{:font_size, -1}]
                      )
                    end
     end
@@ -1739,7 +1739,7 @@ defmodule XlsxWriterTest do
             {{:rotation, 91},
              ~r/:rotation expects an integer between -90 and 90, or 270/},
             {{:rotation, 45.0}, ~r/:rotation expects an integer/},
-            {{:indent, 251}, ~r/:indent expects an integer between 0 and 250/},
+            {{:indent, 256}, ~r/:indent expects an integer between 0 and 255/},
             {{:indent, -1}, ~r/:indent expects an integer/},
             {{:align, :middle}, ~r/:align expects one of/},
             {{:border, :wavy}, ~r/:border expects one of/},
@@ -1757,14 +1757,14 @@ defmodule XlsxWriterTest do
       sheet =
         XlsxWriter.new_sheet("S")
         |> XlsxWriter.write(0, 0, "a",
-          format: [{:rotation, -90}, {:indent, 250}]
+          format: [{:rotation, -90}, {:indent, 255}]
         )
         |> XlsxWriter.write(1, 0, "b", format: [{:rotation, 270}])
         |> XlsxWriter.write(2, 0, "c", format: [{:font_size, 409}])
 
       styles = generate_part!([sheet], "xl/styles.xml")
       assert styles =~ ~s(textRotation="180")
-      assert styles =~ ~s(indent="250")
+      assert styles =~ ~s(indent="255")
       assert styles =~ ~s(textRotation="255")
       assert styles =~ ~s(<sz val="409"/>)
     end
@@ -1816,27 +1816,63 @@ defmodule XlsxWriterTest do
   end
 
   describe "call-time validation" do
-    test "sizes outside Excel's limits raise" do
+    test "invalid sizes raise" do
       sheet = XlsxWriter.new_sheet("S")
 
       for {call, message} <- [
-            {fn -> XlsxWriter.set_column_width(sheet, 0, 256) end,
-             ~r/Column width must be a number between 0 and 255/},
             {fn -> XlsxWriter.set_column_width(sheet, 0, -1) end,
-             ~r/Column width must be a number/},
+             ~r/Column width must be a non-negative number/},
             {fn -> XlsxWriter.set_column_range_width(sheet, 0, 1, "10") end,
-             ~r/Column width must be a number/},
-            {fn -> XlsxWriter.set_row_height(sheet, 0, 410) end,
-             ~r/Row height must be a number between 0 and 409/},
+             ~r/Column width must be a non-negative number/},
+            {fn -> XlsxWriter.set_row_height(sheet, 0, -0.5) end,
+             ~r/Row height must be a non-negative number/},
+            {fn -> XlsxWriter.write_comment(sheet, 0, 0, "x", width: 0.4) end,
+             ~r/Comment :width must be a number of pixels that rounds to at least 1/},
             {fn -> XlsxWriter.set_row_range_height(sheet, 0, 1, :tall) end,
-             ~r/Row height must be a number/},
+             ~r/Row height must be a non-negative number/},
             {fn -> XlsxWriter.write_comment(sheet, 0, 0, "x", width: 0) end,
-             ~r/Comment :width must be a number of pixels >= 1/},
+             ~r/Comment :width must be a number of pixels/},
             {fn ->
                XlsxWriter.write_comment(sheet, 0, 0, "x", height: "big")
-             end, ~r/Comment :height must be a number of pixels >= 1/}
+             end, ~r/Comment :height must be a number of pixels/}
           ] do
         assert_raise ArgumentError, message, call
+      end
+    end
+
+    test "large sizes that 0.10.4 wrote are still written the same way" do
+      sheet =
+        XlsxWriter.new_sheet("S")
+        |> XlsxWriter.set_column_width(0, 300)
+        |> XlsxWriter.set_row_height(0, 500)
+        |> XlsxWriter.write(0, 0, "x",
+          format: [{:font_size, 500}, {:indent, 251}]
+        )
+
+      {:ok, content} = XlsxWriter.generate([sheet])
+      sheet_xml = xlsx_part(content, "xl/worksheets/sheet1.xml")
+      styles = xlsx_part(content, "xl/styles.xml")
+
+      # rust_xlsxwriter caps column widths at Excel's maximum of 255.
+      assert sheet_xml =~
+               ~s(<col min="1" max="1" width="255.7109375" customWidth="1"/>)
+
+      assert sheet_xml =~ ~s(ht="500.25" customHeight="1")
+      assert styles =~ ~s(<sz val="500"/>)
+      assert styles =~ ~s(indent="251")
+    end
+
+    test "comment sizes are rounded before they are checked" do
+      sheet =
+        XlsxWriter.new_sheet("S")
+        |> XlsxWriter.write_comment(0, 0, "x", width: 0.6, visible: true)
+
+      vml = generate_part!([sheet], "xl/drawings/vmlDrawing1.vml")
+      # 0.6 rounds to 1 pixel, 0.75pt.
+      assert vml =~ "width:0.75pt;"
+
+      assert_raise ArgumentError, ~r/rounds to at least 1, got: 0.49/, fn ->
+        XlsxWriter.write_comment(sheet, 0, 0, "x", height: 0.49)
       end
     end
 
@@ -2114,13 +2150,9 @@ defmodule XlsxWriterTest do
             {{:set_row_height, 4_294_967_296, 10},
              "row 4294967296 is outside Excel's range 0..1048575"},
             {{:write, 0, 0, {:string, "x", [{:indent, 257}]}},
-             "indent 257 is outside the range 0..250"},
+             "indent 257 is outside the range 0..255"},
             {{:write, 0, 0, {:string, "x", [{:rotation, 65_581}]}},
-             "rotation 65581 must be between -90 and 90, or 270"},
-            {{:write, 0, 0, {:string, "x", [{:font_size, 65_547}]}},
-             "font size 65547 is outside Excel's range 0..409"},
-            {{:set_row_height, 0, 65_556},
-             "row height 65556 is outside Excel's range 0..409"}
+             "rotation 65581 must be between -90 and 90, or 270"}
           ] do
         assert XlsxWriter.generate([{"S", [instruction]}]) == {:error, message}
       end

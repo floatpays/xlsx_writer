@@ -303,6 +303,6 @@ or an invalid value raises `ArgumentError` (nothing is silently ignored):
 - Colors (`:font_color`, `:bg_color`, `:border_*color`) are hex strings
   `"#RRGGBB"`, case-insensitive; the `#` is optional. Short forms like `"#FFF"`,
   names like `"red"` and 8-digit values raise.
-- `{:font_size, points}` takes an integer or float greater than 0 and at most 409.
+- `{:font_size, points}` takes an integer or float greater than 0.
 - `{:rotation, angle}` takes an integer from -90 to 90, or 270 for stacked text.
-- `{:indent, level}` takes an integer from 0 to 250.
+- `{:indent, level}` takes an integer from 0 to 255.

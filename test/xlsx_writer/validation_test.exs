@@ -89,7 +89,7 @@ defmodule XlsxWriter.ValidationTest do
             {[author: String.duplicate("a", 53)], ~r/at most 52 characters/},
             {[author: :me], ~r/Comment author must be a string/},
             {[visible: "yes"], ~r/Comment :visible must be a boolean/},
-            {[width: 0.4], ~r/Comment :width must be a number of pixels >= 1/}
+            {[width: 0.4], ~r/Comment :width must be a number of pixels/}
           ] do
         assert_raise ArgumentError, message, fn ->
           Validation.validate_comment_options!(options)
@@ -97,11 +97,29 @@ defmodule XlsxWriter.ValidationTest do
       end
     end
 
-    test "counts the author length in characters, not bytes" do
+    test "counts the author length in code points, like rust_xlsxwriter" do
+      # Precomposed "é" is one code point: 52 of them fit.
       assert Validation.validate_comment_options!(
                author: String.duplicate("é", 52)
              ) ==
                :ok
+
+      # "e" plus a combining accent is one grapheme but two code points, so
+      # 30 of them are 60 code points: rust_xlsxwriter would drop the author.
+      combining_author = String.duplicate("é", 30)
+      assert String.length(combining_author) == 30
+
+      assert_raise ArgumentError, ~r/at most 52 characters/, fn ->
+        Validation.validate_comment_options!(author: combining_author)
+      end
+    end
+
+    test "rounds comment sizes before checking them" do
+      assert Validation.validate_comment_options!(width: 0.6, height: 1) == :ok
+
+      assert_raise ArgumentError, ~r/Comment :height/, fn ->
+        Validation.validate_comment_options!(height: 0.4)
+      end
     end
   end
 end

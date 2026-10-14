@@ -11,11 +11,11 @@ defmodule XlsxWriter.Validation do
 
   @max_row 1_048_575
   @max_column 16_383
-  @max_column_width 255
-  @max_row_height 409
-  @max_font_size 409
-  @max_indent 250
+  # The range of rust_xlsxwriter's indent (a u8); larger values used to wrap.
+  @max_indent 255
   @max_comment_author_length 52
+  # Comment sizes are whole pixels stored as u32 by rust_xlsxwriter.
+  @max_comment_size 4_294_967_295
 
   @flag_formats [
     :bold,
@@ -229,9 +229,9 @@ defmodule XlsxWriter.Validation do
   supported options).
 
   Every option must be known and every value must be of the expected type
-  and within the range Excel accepts: colours must be `"#RRGGBB"`,
-  `:font_size` a number in `(0, #{@max_font_size}]`, `:rotation` an integer
-  in `-90..90` or `270`, `:indent` an integer in `0..#{@max_indent}`.
+  and within range: colours must be `"#RRGGBB"`, `:font_size` a number
+  greater than 0, `:rotation` an integer in `-90..90` or `270`, `:indent` an
+  integer in `0..#{@max_indent}`.
 
   ## Raises
 
@@ -331,15 +331,15 @@ defmodule XlsxWriter.Validation do
   end
 
   @doc false
-  # Column width in Excel character units.
+  # Column width in Excel character units. rust_xlsxwriter caps it at 255.
   def validate_column_width!(width) do
-    validate_size!(width, 0, @max_column_width, "Column width")
+    validate_size!(width, "Column width")
   end
 
   @doc false
   # Row height in points.
   def validate_row_height!(height) do
-    validate_size!(height, 0, @max_row_height, "Row height")
+    validate_size!(height, "Row height")
   end
 
   @doc false
@@ -355,7 +355,8 @@ defmodule XlsxWriter.Validation do
   defp validate_comment_author!(nil), do: :ok
 
   defp validate_comment_author!(author) when is_binary(author) do
-    if String.length(author) > @max_comment_author_length do
+    # rust_xlsxwriter counts code points (`chars()`), not graphemes.
+    if length(String.codepoints(author)) > @max_comment_author_length do
       raise ArgumentError,
             "Comment author must be at most #{@max_comment_author_length} characters, got: #{inspect(author)}"
     end
@@ -378,12 +379,14 @@ defmodule XlsxWriter.Validation do
 
   defp validate_comment_size!(_option, nil), do: :ok
 
-  defp validate_comment_size!(_option, size) when is_number(size) and size >= 1,
-    do: :ok
+  # Sizes are rounded to whole pixels; rust_xlsxwriter ignores 0.
+  defp validate_comment_size!(_option, size)
+       when is_number(size) and round(size) >= 1 and
+              round(size) <= @max_comment_size, do: :ok
 
   defp validate_comment_size!(option, size) do
     raise ArgumentError,
-          "Comment #{inspect(option)} must be a number of pixels >= 1, got: #{inspect(size)}"
+          "Comment #{inspect(option)} must be a number of pixels that rounds to at least 1, got: #{inspect(size)}"
   end
 
   defp validate_index!(index, _label, maximum, _unit)
@@ -411,12 +414,11 @@ defmodule XlsxWriter.Validation do
           "First #{unit} (#{first}) must not be after last #{unit} (#{last})"
   end
 
-  defp validate_size!(size, minimum, maximum, _label)
-       when is_number(size) and size >= minimum and size <= maximum, do: :ok
+  defp validate_size!(size, _label) when is_number(size) and size >= 0, do: :ok
 
-  defp validate_size!(size, minimum, maximum, label) do
+  defp validate_size!(size, label) do
     raise ArgumentError,
-          "#{label} must be a number between #{minimum} and #{maximum}, got: #{inspect(size)}"
+          "#{label} must be a non-negative number, got: #{inspect(size)}"
   end
 
   defp validate_format!(flag) when flag in @flag_formats, do: :ok
@@ -470,15 +472,11 @@ defmodule XlsxWriter.Validation do
 
   defp validate_format!({:font_name, name}) when is_binary(name), do: :ok
 
-  defp validate_format!({:font_size, size})
-       when is_number(size) and size > 0 and size <= @max_font_size, do: :ok
+  defp validate_format!({:font_size, size}) when is_number(size) and size > 0,
+    do: :ok
 
   defp validate_format!({:font_size, size}) do
-    format_error!(
-      :font_size,
-      "a number greater than 0 and at most #{@max_font_size}",
-      size
-    )
+    format_error!(:font_size, "a number greater than 0", size)
   end
 
   defp validate_format!({:rotation, angle})

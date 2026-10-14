@@ -210,12 +210,14 @@ defmodule XlsxWriter.BuilderTest do
     end
 
     test "raises for an invalid column width" do
-      for width <- [-1, 256, "wide"] do
-        assert_raise ArgumentError, ~r/Column width must be a number/, fn ->
-          Builder.create()
-          |> Builder.add_sheet("Sheet1")
-          |> Builder.add_rows([[{"x", width: width}]])
-        end
+      for width <- [-1, "wide"] do
+        assert_raise ArgumentError,
+                     ~r/Column width must be a non-negative number/,
+                     fn ->
+                       Builder.create()
+                       |> Builder.add_sheet("Sheet1")
+                       |> Builder.add_rows([[{"x", width: width}]])
+                     end
       end
     end
 
