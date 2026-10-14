@@ -145,8 +145,8 @@ defmodule XlsxWriter do
   ## Parameters
 
   - `sheet` - The sheet tuple `{name, instructions}`
-  - `row` - The row index (0-based)
-  - `col` - The column index (0-based)
+  - `row` - The row index (0-based, at most 1,048,575)
+  - `col` - The column index (0-based, at most 16,383)
   - `val` - The value to write
   - `opts` - Optional keyword list with formatting options
 
@@ -191,6 +191,12 @@ defmodule XlsxWriter do
   `:hair`, `:medium_dashed`, `:dash_dot`, `:medium_dash_dot`, `:dash_dot_dot`,
   `:medium_dash_dot_dot`, `:slant_dash_dot`
 
+  ## Raises
+
+  `ArgumentError` if the position is not a valid Excel cell, the value type
+  is not supported, or a format option is unknown or invalid (see
+  `XlsxWriter.Validation.validate_formats!/1`).
+
   ## Returns
 
   Updated sheet tuple with the new write instruction.
@@ -212,6 +218,10 @@ defmodule XlsxWriter do
       iex> sheet = XlsxWriter.new_sheet("Test")
       iex> XlsxWriter.write(sheet, 0, 0, "Red Italic", format: [:italic, {:font_color, "#FF0000"}])
       {"Test", [{:write, 0, 0, {:string, "Red Italic", [:italic, {:font_color, "#FF0000"}]}}]}
+
+      iex> sheet = XlsxWriter.new_sheet("Test")
+      iex> XlsxWriter.write(sheet, 0, 0, "Yellow", format: [{:bg_color, "yellow"}])
+      ** (ArgumentError) Format option :bg_color expects a string hex color (e.g., "#FF0000"), got: "yellow"
 
   """
   def write({name, instructions}, row, col, val, opts \\ []) do
@@ -253,6 +263,11 @@ defmodule XlsxWriter do
   """
   def write_formula({name, instructions}, row, col, val, opts \\ []) do
     Validation.validate_cell_position!(row, col)
+
+    if !is_binary(val) do
+      raise ArgumentError, "Formula must be a string, got: #{inspect(val)}"
+    end
+
     formats = format_option!(opts)
 
     {name, [{:write, row, col, {:formula, val, formats}} | instructions]}
@@ -325,6 +340,11 @@ defmodule XlsxWriter do
       when is_binary(url) do
     Validation.validate_cell_position!(row, col)
     text = Keyword.get(opts, :text)
+
+    if !(is_binary(text) or is_nil(text)) do
+      raise ArgumentError, "URL :text must be a string, got: #{inspect(text)}"
+    end
+
     formats = format_option!(opts)
 
     {name, [{:write, row, col, {:url, url, text, formats}} | instructions]}
@@ -513,6 +533,8 @@ defmodule XlsxWriter do
             "Comment text must be a string, got: #{inspect(text)}"
     end
 
+    Validation.validate_comment_options!(opts)
+
     note_options = %XlsxWriter.NoteOptions{
       author: Keyword.get(opts, :author),
       visible: Keyword.get(opts, :visible),
@@ -549,6 +571,9 @@ defmodule XlsxWriter do
 
   """
   def set_column_width({name, instructions}, col, width) do
+    Validation.validate_column!(col)
+    Validation.validate_column_width!(width)
+
     {name, [{:set_column_width, col, width} | instructions]}
   end
 
@@ -573,6 +598,9 @@ defmodule XlsxWriter do
 
   """
   def set_row_height({name, instructions}, row, height) do
+    Validation.validate_row!(row)
+    Validation.validate_row_height!(height)
+
     {name, [{:set_row_height, row, height} | instructions]}
   end
 
@@ -600,6 +628,9 @@ defmodule XlsxWriter do
 
   """
   def set_column_range_width({name, instructions}, first_col, last_col, width) do
+    Validation.validate_column_range!(first_col, last_col)
+    Validation.validate_column_width!(width)
+
     {name,
      [{:set_column_range_width, first_col, last_col, width} | instructions]}
   end
@@ -628,6 +659,9 @@ defmodule XlsxWriter do
 
   """
   def set_row_range_height({name, instructions}, first_row, last_row, height) do
+    Validation.validate_row_range!(first_row, last_row)
+    Validation.validate_row_height!(height)
+
     {name,
      [{:set_row_range_height, first_row, last_row, height} | instructions]}
   end
@@ -667,6 +701,8 @@ defmodule XlsxWriter do
 
   """
   def freeze_panes({name, instructions}, row, col) do
+    Validation.validate_cell_position!(row, col)
+
     {name, [{:set_freeze_panes, row, col} | instructions]}
   end
 
@@ -690,6 +726,8 @@ defmodule XlsxWriter do
 
   """
   def hide_row({name, instructions}, row) do
+    Validation.validate_row!(row)
+
     {name, [{:set_row_hidden, row} | instructions]}
   end
 
@@ -713,6 +751,8 @@ defmodule XlsxWriter do
 
   """
   def hide_column({name, instructions}, col) do
+    Validation.validate_column!(col)
+
     {name, [{:set_column_hidden, col} | instructions]}
   end
 
@@ -748,6 +788,8 @@ defmodule XlsxWriter do
         last_row,
         last_col
       ) do
+    Validation.validate_range!(first_row, first_col, last_row, last_col)
+
     {name,
      [
        {:set_autofilter, first_row, first_col, last_row, last_col}
@@ -805,6 +847,8 @@ defmodule XlsxWriter do
 
   """
   def set_tab_color({name, instructions}, color) when is_binary(color) do
+    Validation.validate_color!(color)
+
     {name, [{:set_tab_color, color} | instructions]}
   end
 
@@ -854,6 +898,7 @@ defmodule XlsxWriter do
         val,
         opts \\ []
       ) do
+    Validation.validate_range!(first_row, first_col, last_row, last_col)
     cell_data = to_cell_data(val, format_option!(opts))
 
     {name,
@@ -888,7 +933,7 @@ defmodule XlsxWriter do
     do: {:number, integer_to_float!(value), formats}
 
   defp to_cell_data(%Decimal{} = value, formats),
-    do: {:number, Decimal.to_float(value), formats}
+    do: {:number, decimal_to_float!(value), formats}
 
   defp to_cell_data(%Date{} = value, formats),
     do: {:date, Date.to_iso8601(value), formats}
@@ -903,7 +948,7 @@ defmodule XlsxWriter do
     do: {:date_time, NaiveDateTime.to_iso8601(value), formats}
 
   defp to_cell_data(value, _formats) do
-    raise XlsxWriter.Error,
+    raise ArgumentError,
           "The data type for value #{inspect(value)} is not supported."
   end
 
@@ -916,6 +961,19 @@ defmodule XlsxWriter do
               [
                 message:
                   "Integer #{value} is too large to be stored as an Excel number"
+              ],
+              __STACKTRACE__
+  end
+
+  defp decimal_to_float!(value) do
+    Decimal.to_float(value)
+  rescue
+    # NaN, infinity, or beyond the range of a double.
+    _error in [Decimal.Error, ArgumentError] ->
+      reraise ArgumentError,
+              [
+                message:
+                  "Decimal #{inspect(value)} cannot be stored as an Excel number"
               ],
               __STACKTRACE__
   end

@@ -707,7 +707,7 @@ defmodule XlsxWriterTest do
 
   describe "error handling" do
     test "raises error for unsupported data type (PID)", %{untyped: untyped} do
-      assert_raise XlsxWriter.Error, ~r/not supported/, fn ->
+      assert_raise ArgumentError, ~r/not supported/, fn ->
         XlsxWriter.new_sheet("Test")
         |> XlsxWriter.write(0, 0, untyped.pid)
       end
@@ -716,7 +716,7 @@ defmodule XlsxWriterTest do
     test "raises error for unsupported data type (function)", %{
       untyped: untyped
     } do
-      assert_raise XlsxWriter.Error, ~r/not supported/, fn ->
+      assert_raise ArgumentError, ~r/not supported/, fn ->
         XlsxWriter.new_sheet("Test")
         |> XlsxWriter.write(0, 0, untyped.function)
       end
@@ -725,7 +725,7 @@ defmodule XlsxWriterTest do
     test "raises error for unsupported data type (reference)", %{
       untyped: untyped
     } do
-      assert_raise XlsxWriter.Error, ~r/not supported/, fn ->
+      assert_raise ArgumentError, ~r/not supported/, fn ->
         XlsxWriter.new_sheet("Test")
         |> XlsxWriter.write(0, 0, untyped.reference)
       end
@@ -734,7 +734,7 @@ defmodule XlsxWriterTest do
     test "raises error for unsupported data type (port)" do
       {:ok, port} = :gen_tcp.listen(0, [])
 
-      assert_raise XlsxWriter.Error, ~r/not supported/, fn ->
+      assert_raise ArgumentError, ~r/not supported/, fn ->
         XlsxWriter.new_sheet("Test")
         |> XlsxWriter.write(0, 0, port)
       end
@@ -743,21 +743,21 @@ defmodule XlsxWriterTest do
     end
 
     test "raises error for unsupported data type (map)", %{untyped: untyped} do
-      assert_raise XlsxWriter.Error, ~r/not supported/, fn ->
+      assert_raise ArgumentError, ~r/not supported/, fn ->
         XlsxWriter.new_sheet("Test")
         |> XlsxWriter.write(0, 0, untyped.map)
       end
     end
 
     test "raises error for unsupported data type (list)", %{untyped: untyped} do
-      assert_raise XlsxWriter.Error, ~r/not supported/, fn ->
+      assert_raise ArgumentError, ~r/not supported/, fn ->
         XlsxWriter.new_sheet("Test")
         |> XlsxWriter.write(0, 0, untyped.list)
       end
     end
 
     test "raises error for unsupported data type (tuple)", %{untyped: untyped} do
-      assert_raise XlsxWriter.Error, ~r/not supported/, fn ->
+      assert_raise ArgumentError, ~r/not supported/, fn ->
         XlsxWriter.new_sheet("Test")
         |> XlsxWriter.write(0, 0, untyped.tuple)
       end
@@ -773,19 +773,20 @@ defmodule XlsxWriterTest do
           font_color: "#FFFFFFFF",
           border_top_color: "#12345"
         ] do
-      test "returns an error for invalid #{option} #{inspect(color)}" do
-        sheet =
-          XlsxWriter.new_sheet("Test")
-          |> XlsxWriter.write(0, 0, "Text",
-            format: [{unquote(option), unquote(color)}]
-          )
-
-        assert {:error, "invalid color " <> _} = XlsxWriter.generate([sheet])
+      test "raises for invalid #{option} #{inspect(color)}" do
+        assert_raise ArgumentError,
+                     ~r/#{unquote(option)} expects a string hex color.*got: #{inspect(unquote(color))}/,
+                     fn ->
+                       XlsxWriter.new_sheet("Test")
+                       |> XlsxWriter.write(0, 0, "Text",
+                         format: [{unquote(option), unquote(color)}]
+                       )
+                     end
       end
     end
 
     test "handles boolean as hex color gracefully in background color" do
-      assert_raise XlsxWriter.Error,
+      assert_raise ArgumentError,
                    ~r/bg_color.*expects a string hex color.*got: true/,
                    fn ->
                      XlsxWriter.new_sheet("Test")
@@ -796,7 +797,7 @@ defmodule XlsxWriterTest do
     end
 
     test "handles boolean as hex color gracefully in font color" do
-      assert_raise XlsxWriter.Error,
+      assert_raise ArgumentError,
                    ~r/font_color.*expects a string hex color.*got: false/,
                    fn ->
                      XlsxWriter.new_sheet("Test")
@@ -807,7 +808,7 @@ defmodule XlsxWriterTest do
     end
 
     test "handles integer as hex color gracefully in border color" do
-      assert_raise XlsxWriter.Error,
+      assert_raise ArgumentError,
                    ~r/border_color.*expects a string hex color.*got: 123/,
                    fn ->
                      XlsxWriter.new_sheet("Test")
@@ -840,25 +841,22 @@ defmodule XlsxWriterTest do
       end
     end
 
-    test "handles very large row index" do
-      # Excel has a max of 1,048,576 rows
-      sheet =
-        XlsxWriter.new_sheet("Test")
-        |> XlsxWriter.write(2_000_000, 0, "Text")
-
-      result = XlsxWriter.generate([sheet])
-      # Rust should handle this gracefully
-      assert match?({:ok, _}, result) or match?({:error, _}, result)
+    test "raises for a row index beyond Excel's last row" do
+      assert_raise ArgumentError,
+                   "Row index must be at most 1048575 (Excel's last row), got: 2000000",
+                   fn ->
+                     XlsxWriter.new_sheet("Test")
+                     |> XlsxWriter.write(2_000_000, 0, "Text")
+                   end
     end
 
-    test "handles very large column index" do
-      # Excel has a max of 16,384 columns
-      sheet =
-        XlsxWriter.new_sheet("Test")
-        |> XlsxWriter.write(0, 20_000, "Text")
-
-      result = XlsxWriter.generate([sheet])
-      assert match?({:ok, _}, result) or match?({:error, _}, result)
+    test "raises for a column index beyond Excel's last column" do
+      assert_raise ArgumentError,
+                   "Column index must be at most 16383 (Excel's last column), got: 20000",
+                   fn ->
+                     XlsxWriter.new_sheet("Test")
+                     |> XlsxWriter.write(0, 20_000, "Text")
+                   end
     end
 
     test "handles empty sheet name" do
@@ -952,14 +950,13 @@ defmodule XlsxWriterTest do
       assert <<80, _>> <> _ = content
     end
 
-    test "handles invalid merge range (last < first)" do
-      sheet =
-        XlsxWriter.new_sheet("Test")
-        |> XlsxWriter.merge_range(5, 5, 0, 0, "Text")
-
-      result = XlsxWriter.generate([sheet])
-      # Rust should handle invalid ranges
-      assert match?({:ok, _}, result) or match?({:error, _}, result)
+    test "raises for an inverted merge range (last < first)" do
+      assert_raise ArgumentError,
+                   "First row (5) must not be after last row (0)",
+                   fn ->
+                     XlsxWriter.new_sheet("Test")
+                     |> XlsxWriter.merge_range(5, 5, 0, 0, "Text")
+                   end
     end
 
     test "handles merge range with same start and end" do
@@ -972,31 +969,35 @@ defmodule XlsxWriterTest do
       assert reason =~ "single cell"
     end
 
-    test "handles autofilter with invalid range (last < first)" do
-      sheet =
-        XlsxWriter.new_sheet("Test")
-        |> XlsxWriter.set_autofilter(5, 5, 0, 0)
-
-      result = XlsxWriter.generate([sheet])
-      assert match?({:ok, _}, result) or match?({:error, _}, result)
+    test "raises for an inverted autofilter range (last < first)" do
+      assert_raise ArgumentError,
+                   "First row (5) must not be after last row (0)",
+                   fn ->
+                     XlsxWriter.new_sheet("Test")
+                     |> XlsxWriter.set_autofilter(5, 5, 0, 0)
+                   end
     end
 
-    test "returns an error for a zero font size" do
-      sheet =
-        XlsxWriter.new_sheet("Test")
-        |> XlsxWriter.write(0, 0, "Text", format: [{:font_size, 0}])
-
-      assert {:error, "font size 0 must be greater than 0"} =
-               XlsxWriter.generate([sheet])
+    test "raises for a zero font size" do
+      assert_raise ArgumentError,
+                   ~r/:font_size expects a number greater than 0/,
+                   fn ->
+                     XlsxWriter.new_sheet("Test")
+                     |> XlsxWriter.write(0, 0, "Text",
+                       format: [{:font_size, 0}]
+                     )
+                   end
     end
 
-    test "returns an error for a font size above Excel's maximum of 409" do
-      sheet =
-        XlsxWriter.new_sheet("Test")
-        |> XlsxWriter.write(0, 0, "Text", format: [{:font_size, 1000}])
-
-      assert {:error, "font size 1000 is outside Excel's range 0..409"} =
-               XlsxWriter.generate([sheet])
+    test "raises for a font size above Excel's maximum of 409" do
+      assert_raise ArgumentError,
+                   ~r/:font_size .* at most 409, got: 1000/,
+                   fn ->
+                     XlsxWriter.new_sheet("Test")
+                     |> XlsxWriter.write(0, 0, "Text",
+                       format: [{:font_size, 1000}]
+                     )
+                   end
     end
 
     test "handles empty font name" do
@@ -1153,7 +1154,7 @@ defmodule XlsxWriterTest do
     end
 
     test "validates color formats in segments" do
-      assert_raise XlsxWriter.Error,
+      assert_raise ArgumentError,
                    ~r/font_color.*expects a string hex color/,
                    fn ->
                      XlsxWriter.new_sheet("Test")
@@ -1399,12 +1400,12 @@ defmodule XlsxWriterTest do
       assert {:ok, _} = XlsxWriter.generate([sheet])
     end
 
-    test "unsupported type with format raises XlsxWriter.Error", %{
+    test "unsupported type with format raises ArgumentError", %{
       untyped: untyped
     } do
       sheet = XlsxWriter.new_sheet("X")
 
-      assert_raise XlsxWriter.Error, ~r/not supported/, fn ->
+      assert_raise ArgumentError, ~r/not supported/, fn ->
         XlsxWriter.write(sheet, 0, 0, untyped.pid, format: [:bold])
       end
     end
@@ -1467,12 +1468,12 @@ defmodule XlsxWriterTest do
       assert {:ok, _} = XlsxWriter.generate([sheet])
     end
 
-    test "unsupported type with format raises XlsxWriter.Error", %{
+    test "unsupported type with format raises ArgumentError", %{
       untyped: untyped
     } do
       sheet = XlsxWriter.new_sheet("X")
 
-      assert_raise XlsxWriter.Error, ~r/not supported/, fn ->
+      assert_raise ArgumentError, ~r/not supported/, fn ->
         XlsxWriter.merge_range(sheet, 0, 0, 0, 3, untyped.pid, format: [:bold])
       end
     end
@@ -1579,6 +1580,261 @@ defmodule XlsxWriterTest do
 
       assert XlsxWriter.generate(sheets) ==
                {:error, "images cannot be written to a merged range"}
+    end
+  end
+
+  describe "cell position validation" do
+    @positional_functions [
+      :write,
+      :write_formula,
+      :write_boolean,
+      :write_url,
+      :write_blank,
+      :write_rich_string,
+      :write_image,
+      :write_comment,
+      :freeze_panes,
+      :merge_range,
+      :set_autofilter
+    ]
+
+    for name <- @positional_functions do
+      test "#{name} rejects positions outside Excel's grid" do
+        call = &call_with_position(unquote(name), &1, &2, &3)
+        sheet = XlsxWriter.new_sheet("S")
+
+        assert {_name, [_instruction]} = call.(sheet, 1_048_575, 16_383)
+
+        for {row, col, message} <- [
+              {-1, 0, ~r/Row index must be non-negative/},
+              {0, -1, ~r/Column index must be non-negative/},
+              {1_048_576, 0, ~r/Row index must be at most 1048575/},
+              {0, 16_384, ~r/Column index must be at most 16383/},
+              {0, 70_000, ~r/Column index must be at most 16383/},
+              {1.5, 0, ~r/Row index must be an integer, got: 1.5/},
+              {0, "A", ~r/Column index must be an integer, got: "A"/},
+              {nil, 0, ~r/Row index must be an integer, got: nil/}
+            ] do
+          assert_raise ArgumentError, message, fn -> call.(sheet, row, col) end
+        end
+      end
+    end
+
+    test "row and column functions validate their index" do
+      sheet = XlsxWriter.new_sheet("S")
+
+      assert_raise ArgumentError, ~r/Row index must be at most/, fn ->
+        XlsxWriter.hide_row(sheet, 1_048_576)
+      end
+
+      assert_raise ArgumentError, ~r/Column index must be at most/, fn ->
+        XlsxWriter.hide_column(sheet, 16_384)
+      end
+
+      assert_raise ArgumentError, ~r/Row index must be non-negative/, fn ->
+        XlsxWriter.set_row_height(sheet, -1, 20)
+      end
+
+      assert_raise ArgumentError, ~r/Column index must be an integer/, fn ->
+        XlsxWriter.set_column_width(sheet, 1.0, 20)
+      end
+
+      assert_raise ArgumentError, ~r/Column index must be at most/, fn ->
+        XlsxWriter.set_column_range_width(sheet, 0, 65_537, 10)
+      end
+
+      assert_raise ArgumentError,
+                   ~r/First column \(4\) must not be after/,
+                   fn ->
+                     XlsxWriter.set_column_range_width(sheet, 4, 0, 10)
+                   end
+
+      assert_raise ArgumentError, ~r/First row \(9\) must not be after/, fn ->
+        XlsxWriter.set_row_range_height(sheet, 9, 0, 10)
+      end
+    end
+  end
+
+  defp call_with_position(:write, sheet, row, col),
+    do: XlsxWriter.write(sheet, row, col, "x")
+
+  defp call_with_position(:write_formula, sheet, row, col),
+    do: XlsxWriter.write_formula(sheet, row, col, "=1")
+
+  defp call_with_position(:write_boolean, sheet, row, col),
+    do: XlsxWriter.write_boolean(sheet, row, col, true)
+
+  defp call_with_position(:write_url, sheet, row, col),
+    do: XlsxWriter.write_url(sheet, row, col, "https://example.com")
+
+  defp call_with_position(:write_blank, sheet, row, col),
+    do: XlsxWriter.write_blank(sheet, row, col, format: [:bold])
+
+  defp call_with_position(:write_rich_string, sheet, row, col),
+    do: XlsxWriter.write_rich_string(sheet, row, col, [{"x", [:bold]}])
+
+  defp call_with_position(:write_image, sheet, row, col),
+    do: XlsxWriter.write_image(sheet, row, col, "image")
+
+  defp call_with_position(:write_comment, sheet, row, col),
+    do: XlsxWriter.write_comment(sheet, row, col, "note")
+
+  defp call_with_position(:freeze_panes, sheet, row, col),
+    do: XlsxWriter.freeze_panes(sheet, row, col)
+
+  defp call_with_position(:merge_range, sheet, row, col),
+    do: XlsxWriter.merge_range(sheet, row, col, row, col, "x")
+
+  defp call_with_position(:set_autofilter, sheet, row, col),
+    do: XlsxWriter.set_autofilter(sheet, row, col, row, col)
+
+  describe "format option validation" do
+    test "rejects unknown format options" do
+      for format <- [:bolt, {:font_colour, "#FF0000"}, "bold"] do
+        assert_raise ArgumentError, ~r/Unknown format option/, fn ->
+          XlsxWriter.write(XlsxWriter.new_sheet("S"), 0, 0, "x",
+            format: [format]
+          )
+        end
+      end
+    end
+
+    test "rejects a format that is not a list" do
+      assert_raise ArgumentError, ~r/Formats must be a list/, fn ->
+        XlsxWriter.write(XlsxWriter.new_sheet("S"), 0, 0, "x", format: :bold)
+      end
+
+      assert_raise ArgumentError, ~r/Formats must be a list/, fn ->
+        XlsxWriter.write_blank(XlsxWriter.new_sheet("S"), 0, 0, format: :bold)
+      end
+    end
+
+    test "rejects out-of-range rotation and indent" do
+      for {format, message} <- [
+            {{:rotation, 91},
+             ~r/:rotation expects an integer between -90 and 90, or 270/},
+            {{:rotation, 45.0}, ~r/:rotation expects an integer/},
+            {{:indent, 251}, ~r/:indent expects an integer between 0 and 250/},
+            {{:indent, -1}, ~r/:indent expects an integer/},
+            {{:align, :middle}, ~r/:align expects one of/},
+            {{:border, :wavy}, ~r/:border expects one of/},
+            {{:num_format, 1}, ~r/:num_format expects a string/}
+          ] do
+        assert_raise ArgumentError, message, fn ->
+          XlsxWriter.write(XlsxWriter.new_sheet("S"), 0, 0, "x",
+            format: [format]
+          )
+        end
+      end
+    end
+
+    test "accepts the boundary values" do
+      sheet =
+        XlsxWriter.new_sheet("S")
+        |> XlsxWriter.write(0, 0, "a",
+          format: [{:rotation, -90}, {:indent, 250}]
+        )
+        |> XlsxWriter.write(1, 0, "b", format: [{:rotation, 270}])
+        |> XlsxWriter.write(2, 0, "c", format: [{:font_size, 409}])
+
+      styles = generate_part!([sheet], "xl/styles.xml")
+      assert styles =~ ~s(textRotation="180")
+      assert styles =~ ~s(indent="250")
+      assert styles =~ ~s(textRotation="255")
+      assert styles =~ ~s(<sz val="409"/>)
+    end
+
+    test "write_url and write_formula reject invalid arguments", %{
+      untyped: untyped
+    } do
+      assert_raise ArgumentError, ~r/URL :text must be a string/, fn ->
+        XlsxWriter.write_url(XlsxWriter.new_sheet("S"), 0, 0, "https://a.b",
+          text: :atom
+        )
+      end
+
+      assert_raise ArgumentError, ~r/Formula must be a string, got: 123/, fn ->
+        XlsxWriter.write_formula(
+          XlsxWriter.new_sheet("S"),
+          0,
+          0,
+          untyped.integer
+        )
+      end
+    end
+
+    test "rejects empty rich string segments" do
+      assert_raise ArgumentError,
+                   ~r/Rich string segment text cannot be empty/,
+                   fn ->
+                     XlsxWriter.write_rich_string(
+                       XlsxWriter.new_sheet("S"),
+                       0,
+                       0,
+                       [
+                         {"", [:bold]},
+                         {"x", []}
+                       ]
+                     )
+                   end
+    end
+
+    test "rejects numbers Excel cannot store" do
+      assert_raise ArgumentError, ~r/too large to be stored/, fn ->
+        XlsxWriter.write(XlsxWriter.new_sheet("S"), 0, 0, Integer.pow(10, 400))
+      end
+
+      assert_raise ArgumentError, ~r/cannot be stored as an Excel number/, fn ->
+        XlsxWriter.write(XlsxWriter.new_sheet("S"), 0, 0, Decimal.new("1e400"))
+      end
+    end
+  end
+
+  describe "call-time validation" do
+    test "sizes outside Excel's limits raise" do
+      sheet = XlsxWriter.new_sheet("S")
+
+      for {call, message} <- [
+            {fn -> XlsxWriter.set_column_width(sheet, 0, 256) end,
+             ~r/Column width must be a number between 0 and 255/},
+            {fn -> XlsxWriter.set_column_width(sheet, 0, -1) end,
+             ~r/Column width must be a number/},
+            {fn -> XlsxWriter.set_column_range_width(sheet, 0, 1, "10") end,
+             ~r/Column width must be a number/},
+            {fn -> XlsxWriter.set_row_height(sheet, 0, 410) end,
+             ~r/Row height must be a number between 0 and 409/},
+            {fn -> XlsxWriter.set_row_range_height(sheet, 0, 1, :tall) end,
+             ~r/Row height must be a number/},
+            {fn -> XlsxWriter.write_comment(sheet, 0, 0, "x", width: 0) end,
+             ~r/Comment :width must be a number of pixels >= 1/},
+            {fn ->
+               XlsxWriter.write_comment(sheet, 0, 0, "x", height: "big")
+             end, ~r/Comment :height must be a number of pixels >= 1/}
+          ] do
+        assert_raise ArgumentError, message, call
+      end
+    end
+
+    test "set_tab_color rejects invalid colors" do
+      for color <- ["blue", "#FFF", "#FFFFFFFF"] do
+        assert_raise ArgumentError, ~r/Expected a string hex color/, fn ->
+          XlsxWriter.set_tab_color(XlsxWriter.new_sheet("S"), color)
+        end
+      end
+    end
+
+    test "raise for an author longer than Excel's 52 character limit" do
+      assert_raise ArgumentError,
+                   ~r/Comment author must be at most 52 characters/,
+                   fn ->
+                     XlsxWriter.write_comment(
+                       XlsxWriter.new_sheet("S"),
+                       0,
+                       0,
+                       "x",
+                       author: String.duplicate("a", 53)
+                     )
+                   end
     end
   end
 
