@@ -908,8 +908,9 @@ defmodule XlsxWriter do
      ]}
   end
 
+  # `format: nil` means no format, as it did before formats were validated.
   defp format_option!(opts) do
-    formats = Keyword.get(opts, :format, [])
+    formats = Keyword.get(opts, :format) || []
     Validation.validate_formats!(formats)
     formats
   end

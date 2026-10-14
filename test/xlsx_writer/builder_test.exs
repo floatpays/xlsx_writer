@@ -219,6 +219,22 @@ defmodule XlsxWriter.BuilderTest do
       end
     end
 
+    test "format: nil and width: nil are the same as leaving them out" do
+      write = fn rows ->
+        {:ok, content} =
+          Builder.create()
+          |> Builder.add_sheet("Sheet1")
+          |> Builder.add_rows(rows)
+          |> Builder.write_binary()
+
+        {xlsx_part(content, "xl/worksheets/sheet1.xml"),
+         xlsx_part(content, "xl/styles.xml")}
+      end
+
+      assert write.([[{"x", format: nil}, {"y", width: nil}]]) ==
+               write.([["x", "y"]])
+    end
+
     test "raises for unknown cell options instead of ignoring them" do
       assert_raise ArgumentError,
                    ~s(Unknown cell option :formats in {"x", [formats: [:bold]]}, expected one of [:format, :width]),

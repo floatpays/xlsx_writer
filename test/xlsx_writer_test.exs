@@ -133,6 +133,37 @@ defmodule XlsxWriterTest do
     end
   end
 
+  describe "format: nil" do
+    test "is the same as no format for every function that takes :format" do
+      writers = [
+        &XlsxWriter.write(&1, 0, 0, "text", &2),
+        &XlsxWriter.write(&1, 0, 0, ~D[2024-01-02], &2),
+        &XlsxWriter.write_formula(&1, 0, 0, "=1+1", &2),
+        &XlsxWriter.write_boolean(&1, 0, 0, true, &2),
+        &XlsxWriter.write_url(&1, 0, 0, "https://example.com", &2),
+        &XlsxWriter.write_blank(&1, 0, 0, &2),
+        &XlsxWriter.write_rich_string(
+          &1,
+          0,
+          0,
+          [{"a", [:bold]}, {"b", []}],
+          &2
+        ),
+        &XlsxWriter.merge_range(&1, 0, 0, 0, 2, 42, &2)
+      ]
+
+      for writer <- writers do
+        without_format = XlsxWriter.new_sheet("S") |> writer.([])
+        with_nil_format = XlsxWriter.new_sheet("S") |> writer.(format: nil)
+
+        assert with_nil_format == without_format
+
+        assert generate_part!([with_nil_format], "xl/styles.xml") ==
+                 generate_part!([without_format], "xl/styles.xml")
+      end
+    end
+  end
+
   describe "write_boolean/5" do
     test "generates valid xlsx with boolean values" do
       sheet =

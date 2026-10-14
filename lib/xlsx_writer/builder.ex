@@ -383,14 +383,14 @@ defmodule XlsxWriter.Builder do
     validate_cell_options!(cell, opts)
 
     builder =
-      case Keyword.fetch(opts, :width) do
-        {:ok, width} ->
+      case Keyword.get(opts, :width) do
+        nil ->
+          builder
+
+        width ->
           Validation.validate_column!(col)
           Validation.validate_column_width!(width)
           put_in(builder.column_widths[col], width)
-
-        :error ->
-          builder
       end
 
     add_write_instruction(
@@ -398,7 +398,7 @@ defmodule XlsxWriter.Builder do
       row,
       col,
       value,
-      Keyword.get(opts, :format, [])
+      Keyword.get(opts, :format) || []
     )
   end
 
