@@ -71,12 +71,12 @@ defmodule XlsxWriter do
   @doc """
   Generates an Excel xlsx file from a list of sheets.
 
-  Takes a list of sheet tuples where each tuple contains a sheet name and
-  a list of instructions for that sheet.
+  Takes a list of sheets built with `new_sheet/1` and the functions in this
+  module.
 
   ## Parameters
 
-  - `sheets` - A list of `{sheet_name, instructions}` tuples
+  - `sheets` - A list of `t:sheet/0`s
   - `opts` - Optional keyword list:
     - `:properties` - A `%XlsxWriter.WorkbookProperties{}` struct with document metadata
 
@@ -126,12 +126,11 @@ defmodule XlsxWriter do
 
   ## Returns
 
-  A sheet tuple `{name, []}` ready for writing data.
+  An empty `t:sheet/0` named `name`.
 
   ## Examples
 
-      iex> XlsxWriter.new_sheet("My Sheet")
-      {"My Sheet", []}
+      iex> {"My Sheet", _instructions} = XlsxWriter.new_sheet("My Sheet")
 
   """
   def new_sheet(name) when is_binary(name), do: {name, []}
@@ -156,7 +155,7 @@ defmodule XlsxWriter do
 
   ## Parameters
 
-  - `sheet` - The sheet tuple `{name, instructions}`
+  - `sheet` - A `t:sheet/0`
   - `row` - The row index (0-based, at most 1,048,575)
   - `col` - The column index (0-based, at most 16,383)
   - `val` - The value to write
@@ -211,25 +210,18 @@ defmodule XlsxWriter do
 
   ## Returns
 
-  Updated sheet tuple with the new write instruction.
+  The updated sheet.
 
   ## Examples
 
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> XlsxWriter.write(sheet, 0, 0, "Hello")
-      {"Test", [{:write, 0, 0, {:string, "Hello", []}}]}
-
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> XlsxWriter.write(sheet, 0, 0, "Bold", format: [:bold])
-      {"Test", [{:write, 0, 0, {:string, "Bold", [:bold]}}]}
-
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> XlsxWriter.write(sheet, 0, 0, 42, format: [{:num_format, "0.00"}])
-      {"Test", [{:write, 0, 0, {:number, 42.0, [{:num_format, "0.00"}]}}]}
-
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> XlsxWriter.write(sheet, 0, 0, "Red Italic", format: [:italic, {:font_color, "#FF0000"}])
-      {"Test", [{:write, 0, 0, {:string, "Red Italic", [:italic, {:font_color, "#FF0000"}]}}]}
+      iex> sheet =
+      ...>   XlsxWriter.new_sheet("Test")
+      ...>   |> XlsxWriter.write(0, 0, "Hello")
+      ...>   |> XlsxWriter.write(1, 0, "Bold", format: [:bold])
+      ...>   |> XlsxWriter.write(2, 0, 42, format: [{:num_format, "0.00"}])
+      ...>   |> XlsxWriter.write(3, 0, "Red Italic", format: [:italic, {:font_color, "#FF0000"}])
+      ...>   |> XlsxWriter.write(4, 0, ~D[2024-01-15])
+      iex> {:ok, <<"PK", _::binary>>} = XlsxWriter.generate([sheet])
 
       iex> sheet = XlsxWriter.new_sheet("Test")
       iex> XlsxWriter.write(sheet, 0, 0, "Yellow", format: [{:bg_color, "yellow"}])
@@ -248,7 +240,7 @@ defmodule XlsxWriter do
 
   ## Parameters
 
-  - `sheet` - The sheet tuple `{name, instructions}`
+  - `sheet` - A `t:sheet/0`
   - `row` - The row index (0-based)
   - `col` - The column index (0-based)
   - `val` - The Excel formula string (should start with '=')
@@ -260,17 +252,17 @@ defmodule XlsxWriter do
 
   ## Returns
 
-  Updated sheet tuple with the new formula instruction.
+  The updated sheet.
 
   ## Examples
 
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> XlsxWriter.write_formula(sheet, 0, 2, "=A1+B1")
-      {"Test", [{:write, 0, 2, {:formula, "=A1+B1", []}}]}
-
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> XlsxWriter.write_formula(sheet, 0, 2, "=A1+B1", format: [:bold])
-      {"Test", [{:write, 0, 2, {:formula, "=A1+B1", [:bold]}}]}
+      iex> sheet =
+      ...>   XlsxWriter.new_sheet("Test")
+      ...>   |> XlsxWriter.write(0, 0, 1)
+      ...>   |> XlsxWriter.write(0, 1, 2)
+      ...>   |> XlsxWriter.write_formula(0, 2, "=A1+B1")
+      ...>   |> XlsxWriter.write_formula(1, 2, "=A1*B1", format: [:bold])
+      iex> {:ok, <<"PK", _::binary>>} = XlsxWriter.generate([sheet])
 
   """
   def write_formula({name, instructions}, row, col, val, opts \\ []) do
@@ -290,7 +282,7 @@ defmodule XlsxWriter do
 
   ## Parameters
 
-  - `sheet` - The sheet tuple `{name, instructions}`
+  - `sheet` - A `t:sheet/0`
   - `row` - The row index (0-based)
   - `col` - The column index (0-based)
   - `val` - The boolean value (true or false)
@@ -298,17 +290,15 @@ defmodule XlsxWriter do
 
   ## Returns
 
-  Updated sheet tuple with the new boolean instruction.
+  The updated sheet.
 
   ## Examples
 
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> XlsxWriter.write_boolean(sheet, 0, 0, true)
-      {"Test", [{:write, 0, 0, {:boolean, true, []}}]}
-
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> XlsxWriter.write_boolean(sheet, 0, 0, false, format: [:bold])
-      {"Test", [{:write, 0, 0, {:boolean, false, [:bold]}}]}
+      iex> sheet =
+      ...>   XlsxWriter.new_sheet("Test")
+      ...>   |> XlsxWriter.write_boolean(0, 0, true)
+      ...>   |> XlsxWriter.write_boolean(1, 0, false, format: [:bold])
+      iex> {:ok, <<"PK", _::binary>>} = XlsxWriter.generate([sheet])
 
   """
   def write_boolean({name, instructions}, row, col, val, opts \\ [])
@@ -324,7 +314,7 @@ defmodule XlsxWriter do
 
   ## Parameters
 
-  - `sheet` - The sheet tuple `{name, instructions}`
+  - `sheet` - A `t:sheet/0`
   - `row` - The row index (0-based)
   - `col` - The column index (0-based)
   - `url` - The URL string
@@ -335,17 +325,15 @@ defmodule XlsxWriter do
 
   ## Returns
 
-  Updated sheet tuple with the new URL instruction.
+  The updated sheet.
 
   ## Examples
 
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> XlsxWriter.write_url(sheet, 0, 0, "https://example.com")
-      {"Test", [{:write, 0, 0, {:url, "https://example.com", nil, []}}]}
-
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> XlsxWriter.write_url(sheet, 0, 0, "https://example.com", text: "Click here")
-      {"Test", [{:write, 0, 0, {:url, "https://example.com", "Click here", []}}]}
+      iex> sheet =
+      ...>   XlsxWriter.new_sheet("Test")
+      ...>   |> XlsxWriter.write_url(0, 0, "https://example.com")
+      ...>   |> XlsxWriter.write_url(1, 0, "https://example.com", text: "Click here")
+      iex> {:ok, <<"PK", _::binary>>} = XlsxWriter.generate([sheet])
 
   """
   def write_url({name, instructions}, row, col, url, opts \\ [])
@@ -370,20 +358,21 @@ defmodule XlsxWriter do
 
   ## Parameters
 
-  - `sheet` - The sheet tuple `{name, instructions}`
+  - `sheet` - A `t:sheet/0`
   - `row` - The row index (0-based)
   - `col` - The column index (0-based)
   - `opts` - Keyword list with `:format` specifications
 
   ## Returns
 
-  Updated sheet tuple with the new blank cell instruction.
+  The updated sheet.
 
   ## Examples
 
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> XlsxWriter.write_blank(sheet, 0, 0, format: [:bold, {:bg_color, "#FFFF00"}])
-      {"Test", [{:write, 0, 0, {:blank, [:bold, {:bg_color, "#FFFF00"}]}}]}
+      iex> sheet =
+      ...>   XlsxWriter.new_sheet("Test")
+      ...>   |> XlsxWriter.write_blank(0, 0, format: [:bold, {:bg_color, "#FFFF00"}])
+      iex> {:ok, <<"PK", _::binary>>} = XlsxWriter.generate([sheet])
 
   """
   def write_blank({name, instructions}, row, col, opts \\ []) do
@@ -401,7 +390,7 @@ defmodule XlsxWriter do
 
   ## Parameters
 
-  - `sheet` - The sheet tuple `{name, instructions}`
+  - `sheet` - A `t:sheet/0`
   - `row` - The row index (0-based)
   - `col` - The column index (0-based)
   - `segments` - A list of `{text, formats}` tuples, where:
@@ -425,33 +414,24 @@ defmodule XlsxWriter do
 
   ## Returns
 
-  Updated sheet tuple with the new rich string instruction.
+  The updated sheet.
 
   ## Examples
 
-      # Simple bold and normal text
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> XlsxWriter.write_rich_string(sheet, 0, 0, [
-      ...>   {"Bold ", [:bold]},
-      ...>   {"Normal", []}
-      ...> ])
-      {"Test", [{:write, 0, 0, {:rich_string, [{"Bold ", [:bold]}, {"Normal", []}], []}}]}
-
-      # Colored text segments
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> XlsxWriter.write_rich_string(sheet, 0, 0, [
-      ...>   {"Red ", [{:font_color, "#FF0000"}]},
-      ...>   {"Blue", [{:font_color, "#0000FF"}]}
-      ...> ])
-      {"Test", [{:write, 0, 0, {:rich_string, [{"Red ", [{:font_color, "#FF0000"}]}, {"Blue", [{:font_color, "#0000FF"}]}], []}}]}
-
-      # With cell-level formatting (centered)
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> XlsxWriter.write_rich_string(sheet, 0, 0, [
-      ...>   {"Bold ", [:bold]},
-      ...>   {"Italic", [:italic]}
-      ...> ], format: [{:align, :center}])
-      {"Test", [{:write, 0, 0, {:rich_string, [{"Bold ", [:bold]}, {"Italic", [:italic]}], [{:align, :center}]}}]}
+      iex> sheet =
+      ...>   XlsxWriter.new_sheet("Test")
+      ...>   # Bold and normal text
+      ...>   |> XlsxWriter.write_rich_string(0, 0, [{"Bold ", [:bold]}, {"Normal", []}])
+      ...>   # Coloured segments
+      ...>   |> XlsxWriter.write_rich_string(1, 0, [
+      ...>     {"Red ", [{:font_color, "#FF0000"}]},
+      ...>     {"Blue", [{:font_color, "#0000FF"}]}
+      ...>   ])
+      ...>   # Cell-level formatting (centered)
+      ...>   |> XlsxWriter.write_rich_string(2, 0, [{"Bold ", [:bold]}, {"Italic", [:italic]}],
+      ...>     format: [{:align, :center}]
+      ...>   )
+      iex> {:ok, <<"PK", _::binary>>} = XlsxWriter.generate([sheet])
 
   """
   def write_rich_string({name, instructions}, row, col, segments, opts \\ []) do
@@ -468,21 +448,24 @@ defmodule XlsxWriter do
 
   ## Parameters
 
-  - `sheet` - The sheet tuple `{name, instructions}`
+  - `sheet` - A `t:sheet/0`
   - `row` - The row index (0-based)
   - `col` - The column index (0-based)
   - `image_binary` - The binary content of the image file
 
   ## Returns
 
-  Updated sheet tuple with the new image instruction.
+  The updated sheet.
 
   ## Examples
 
-      iex> image_data = <<137, 80, 78, 71>>  # Mock PNG header
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.write_image(sheet, 0, 0, image_data)
-      iex> {"Test", [{:write, 0, 0, {:image, ^image_data}}]} = sheet
+      image_data = File.read!("logo.png")
+
+      sheet =
+        XlsxWriter.new_sheet("Test")
+        |> XlsxWriter.write_image(0, 0, image_data)
+
+      {:ok, content} = XlsxWriter.generate([sheet])
 
   """
   def write_image({name, instructions}, row, col, image_binary) do
@@ -500,7 +483,7 @@ defmodule XlsxWriter do
 
   ## Parameters
 
-  - `sheet` - The sheet tuple `{name, instructions}`
+  - `sheet` - A `t:sheet/0`
   - `row` - The row index (0-based)
   - `col` - The column index (0-based)
   - `text` - The comment text content
@@ -512,29 +495,19 @@ defmodule XlsxWriter do
 
   ## Returns
 
-  Updated sheet tuple with the new comment instruction.
+  The updated sheet.
 
   ## Examples
 
-      # Simple comment
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.write_comment(sheet, 0, 0, "This is a note")
-      iex> {"Test", [{:insert_note, 0, 0, "This is a note", _}]} = sheet
-
-      # Comment with author
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.write_comment(sheet, 0, 0, "Review this", author: "John Doe")
-      iex> {"Test", [{:insert_note, 0, 0, "Review this", %XlsxWriter.NoteOptions{author: "John Doe"}}]} = sheet
-
-      # Visible comment with custom size
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.write_comment(sheet, 0, 0, "Important!",
-      ...>   visible: true, width: 300, height: 200)
-      iex> {"Test", [{:insert_note, 0, 0, "Important!", options}]} = sheet
-      iex> options.visible
-      true
-      iex> options.width
-      300
+      iex> sheet =
+      ...>   XlsxWriter.new_sheet("Test")
+      ...>   # Simple comment
+      ...>   |> XlsxWriter.write_comment(0, 0, "This is a note")
+      ...>   # Comment with author
+      ...>   |> XlsxWriter.write_comment(1, 0, "Review this", author: "John Doe")
+      ...>   # Visible comment with custom size
+      ...>   |> XlsxWriter.write_comment(2, 0, "Important!", visible: true, width: 300, height: 200)
+      iex> {:ok, <<"PK", _::binary>>} = XlsxWriter.generate([sheet])
 
   """
   def write_comment({name, instructions}, row, col, text, opts \\ []) do
@@ -562,24 +535,22 @@ defmodule XlsxWriter do
 
   ## Parameters
 
-  - `sheet` - The sheet tuple `{name, instructions}`
+  - `sheet` - A `t:sheet/0`
   - `col` - The column index (0-based)
   - `width` - The width in Excel character units, a non-negative integer or
     float (Excel caps it at 255; 0 hides the column)
 
   ## Returns
 
-  Updated sheet tuple with the new column width instruction.
+  The updated sheet.
 
   ## Examples
 
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> XlsxWriter.set_column_width(sheet, 0, 25)
-      {"Test", [{:set_column_width, 0, 25}]}
-
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> XlsxWriter.set_column_width(sheet, 0, 12.5)
-      {"Test", [{:set_column_width, 0, 12.5}]}
+      iex> sheet =
+      ...>   XlsxWriter.new_sheet("Test")
+      ...>   |> XlsxWriter.set_column_width(0, 25)
+      ...>   |> XlsxWriter.set_column_width(1, 12.5)
+      iex> {:ok, <<"PK", _::binary>>} = XlsxWriter.generate([sheet])
 
   """
   def set_column_width({name, instructions}, col, width) do
@@ -594,20 +565,21 @@ defmodule XlsxWriter do
 
   ## Parameters
 
-  - `sheet` - The sheet tuple `{name, instructions}`
+  - `sheet` - A `t:sheet/0`
   - `row` - The row index (0-based)
   - `height` - The height in points, a non-negative integer or float (0 hides
     the row)
 
   ## Returns
 
-  Updated sheet tuple with the new row height instruction.
+  The updated sheet.
 
   ## Examples
 
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> XlsxWriter.set_row_height(sheet, 0, 30.0)
-      {"Test", [{:set_row_height, 0, 30.0}]}
+      iex> sheet =
+      ...>   XlsxWriter.new_sheet("Test")
+      ...>   |> XlsxWriter.set_row_height(0, 30.0)
+      iex> {:ok, <<"PK", _::binary>>} = XlsxWriter.generate([sheet])
 
   """
   def set_row_height({name, instructions}, row, height) do
@@ -624,20 +596,21 @@ defmodule XlsxWriter do
 
   ## Parameters
 
-  - `sheet` - The sheet tuple `{name, instructions}`
+  - `sheet` - A `t:sheet/0`
   - `first_col` - The first column index (0-based)
   - `last_col` - The last column index (0-based, inclusive)
   - `width` - The width value in Excel character units (matches `set_column_width/3`)
 
   ## Returns
 
-  Updated sheet tuple with the new column range width instruction.
+  The updated sheet.
 
   ## Examples
 
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> XlsxWriter.set_column_range_width(sheet, 0, 4, 20)
-      {"Test", [{:set_column_range_width, 0, 4, 20}]}
+      iex> sheet =
+      ...>   XlsxWriter.new_sheet("Test")
+      ...>   |> XlsxWriter.set_column_range_width(0, 4, 20)
+      iex> {:ok, <<"PK", _::binary>>} = XlsxWriter.generate([sheet])
 
   """
   def set_column_range_width({name, instructions}, first_col, last_col, width) do
@@ -655,20 +628,21 @@ defmodule XlsxWriter do
 
   ## Parameters
 
-  - `sheet` - The sheet tuple `{name, instructions}`
+  - `sheet` - A `t:sheet/0`
   - `first_row` - The first row index (0-based)
   - `last_row` - The last row index (0-based, inclusive)
   - `height` - The height value in points (matches `set_row_height/3`)
 
   ## Returns
 
-  Updated sheet tuple with the new row range height instruction.
+  The updated sheet.
 
   ## Examples
 
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> XlsxWriter.set_row_range_height(sheet, 0, 9, 25)
-      {"Test", [{:set_row_range_height, 0, 9, 25}]}
+      iex> sheet =
+      ...>   XlsxWriter.new_sheet("Test")
+      ...>   |> XlsxWriter.set_row_range_height(0, 9, 25)
+      iex> {:ok, <<"PK", _::binary>>} = XlsxWriter.generate([sheet])
 
   """
   def set_row_range_height({name, instructions}, first_row, last_row, height) do
@@ -687,30 +661,23 @@ defmodule XlsxWriter do
 
   ## Parameters
 
-  - `sheet` - The sheet tuple `{name, instructions}`
+  - `sheet` - A `t:sheet/0`
   - `row` - The row to freeze at (0-based). Rows above this remain visible.
   - `col` - The column to freeze at (0-based). Columns left of this remain visible.
 
   ## Returns
 
-  Updated sheet tuple with the freeze panes instruction.
+  The updated sheet.
 
   ## Examples
 
       # Freeze the first row (header row)
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> XlsxWriter.freeze_panes(sheet, 1, 0)
-      {"Test", [{:set_freeze_panes, 1, 0}]}
+      iex> sheet = XlsxWriter.new_sheet("Test") |> XlsxWriter.freeze_panes(1, 0)
+      iex> {:ok, <<"PK", _::binary>>} = XlsxWriter.generate([sheet])
 
-      # Freeze first column
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> XlsxWriter.freeze_panes(sheet, 0, 1)
-      {"Test", [{:set_freeze_panes, 0, 1}]}
-
-      # Freeze first row and first column
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> XlsxWriter.freeze_panes(sheet, 1, 1)
-      {"Test", [{:set_freeze_panes, 1, 1}]}
+      # Freeze the first row and the first column
+      iex> sheet = XlsxWriter.new_sheet("Test") |> XlsxWriter.freeze_panes(1, 1)
+      iex> {:ok, <<"PK", _::binary>>} = XlsxWriter.generate([sheet])
 
   """
   def freeze_panes({name, instructions}, row, col) do
@@ -724,18 +691,17 @@ defmodule XlsxWriter do
 
   ## Parameters
 
-  - `sheet` - The sheet tuple `{name, instructions}`
+  - `sheet` - A `t:sheet/0`
   - `row` - The row index to hide (0-based)
 
   ## Returns
 
-  Updated sheet tuple with the hide row instruction.
+  The updated sheet.
 
   ## Examples
 
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> XlsxWriter.hide_row(sheet, 5)
-      {"Test", [{:set_row_hidden, 5}]}
+      iex> sheet = XlsxWriter.new_sheet("Test") |> XlsxWriter.hide_row(5)
+      iex> {:ok, <<"PK", _::binary>>} = XlsxWriter.generate([sheet])
 
   """
   def hide_row({name, instructions}, row) do
@@ -749,18 +715,17 @@ defmodule XlsxWriter do
 
   ## Parameters
 
-  - `sheet` - The sheet tuple `{name, instructions}`
+  - `sheet` - A `t:sheet/0`
   - `col` - The column index to hide (0-based)
 
   ## Returns
 
-  Updated sheet tuple with the hide column instruction.
+  The updated sheet.
 
   ## Examples
 
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> XlsxWriter.hide_column(sheet, 2)
-      {"Test", [{:set_column_hidden, 2}]}
+      iex> sheet = XlsxWriter.new_sheet("Test") |> XlsxWriter.hide_column(2)
+      iex> {:ok, <<"PK", _::binary>>} = XlsxWriter.generate([sheet])
 
   """
   def hide_column({name, instructions}, col) do
@@ -776,7 +741,7 @@ defmodule XlsxWriter do
 
   ## Parameters
 
-  - `sheet` - The sheet tuple `{name, instructions}`
+  - `sheet` - A `t:sheet/0`
   - `first_row` - The first row of the filter range (0-based)
   - `first_col` - The first column of the filter range (0-based)
   - `last_row` - The last row of the filter range (0-based)
@@ -784,14 +749,16 @@ defmodule XlsxWriter do
 
   ## Returns
 
-  Updated sheet tuple with the autofilter instruction.
+  The updated sheet.
 
   ## Examples
 
       # Set autofilter on header row (row 0, columns A-E)
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> XlsxWriter.set_autofilter(sheet, 0, 0, 0, 4)
-      {"Test", [{:set_autofilter, 0, 0, 0, 4}]}
+      iex> sheet =
+      ...>   XlsxWriter.new_sheet("Test")
+      ...>   |> XlsxWriter.write(0, 0, "Name")
+      ...>   |> XlsxWriter.set_autofilter(0, 0, 0, 4)
+      iex> {:ok, <<"PK", _::binary>>} = XlsxWriter.generate([sheet])
 
   """
   def set_autofilter(
@@ -820,17 +787,19 @@ defmodule XlsxWriter do
 
   ## Parameters
 
-  - `sheet` - The sheet tuple `{name, instructions}`
+  - `sheet` - A `t:sheet/0`
 
   ## Returns
 
-  Updated sheet tuple with the autofit instruction.
+  The updated sheet.
 
   ## Examples
 
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> XlsxWriter.autofit(sheet)
-      {"Test", [:set_autofit]}
+      iex> sheet =
+      ...>   XlsxWriter.new_sheet("Test")
+      ...>   |> XlsxWriter.autofit()
+      ...>   |> XlsxWriter.write(0, 0, "A fairly long heading")
+      iex> {:ok, <<"PK", _::binary>>} = XlsxWriter.generate([sheet])
 
   """
   def autofit({name, instructions}) do
@@ -845,18 +814,17 @@ defmodule XlsxWriter do
 
   ## Parameters
 
-  - `sheet` - The sheet tuple `{name, instructions}`
+  - `sheet` - A `t:sheet/0`
   - `color` - Hex color string (e.g., "#FF0000" for red)
 
   ## Returns
 
-  Updated sheet tuple with the tab color instruction.
+  The updated sheet.
 
   ## Examples
 
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> XlsxWriter.set_tab_color(sheet, "#FF0000")
-      {"Test", [{:set_tab_color, "#FF0000"}]}
+      iex> sheet = XlsxWriter.new_sheet("Test") |> XlsxWriter.set_tab_color("#FF0000")
+      iex> {:ok, <<"PK", _::binary>>} = XlsxWriter.generate([sheet])
 
   """
   def set_tab_color({name, instructions}, color) when is_binary(color) do
@@ -877,7 +845,7 @@ defmodule XlsxWriter do
 
   ## Parameters
 
-  - `sheet` - The sheet tuple `{name, instructions}`
+  - `sheet` - A `t:sheet/0`
   - `first_row` - The first row of the merge range (0-based)
   - `first_col` - The first column of the merge range (0-based)
   - `last_row` - The last row of the merge range (0-based)
@@ -887,19 +855,17 @@ defmodule XlsxWriter do
 
   ## Returns
 
-  Updated sheet tuple with the merge range instruction.
+  The updated sheet.
 
   ## Examples
 
-      # Merge cells A1:D1 with centered title
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> XlsxWriter.merge_range(sheet, 0, 0, 0, 3, "Title", format: [:bold, {:align, :center}])
-      {"Test", [{:merge_range, 0, 0, 0, 3, {:string, "Title", [:bold, {:align, :center}]}}]}
-
-      # Merge cells for a number
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> XlsxWriter.merge_range(sheet, 1, 1, 3, 1, 100)
-      {"Test", [{:merge_range, 1, 1, 3, 1, {:number, 100.0, []}}]}
+      iex> sheet =
+      ...>   XlsxWriter.new_sheet("Test")
+      ...>   # Merge cells A1:D1 with a centered title
+      ...>   |> XlsxWriter.merge_range(0, 0, 0, 3, "Title", format: [:bold, {:align, :center}])
+      ...>   # Merge cells B2:B4 for a number
+      ...>   |> XlsxWriter.merge_range(1, 1, 3, 1, 100)
+      iex> {:ok, <<"PK", _::binary>>} = XlsxWriter.generate([sheet])
 
   """
   def merge_range(
