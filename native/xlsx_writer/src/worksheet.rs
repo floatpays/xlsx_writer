@@ -162,7 +162,7 @@ fn merge_range(
     last_column: u16,
     data: &CellData,
 ) -> WriteResult<()> {
-    if matches!(data, CellData::Image(_) | CellData::ImagePath(_)) {
+    if matches!(data, CellData::Image(_)) {
         return Err(WriteError::new(
             "images cannot be written to a merged range",
         ));
@@ -238,10 +238,6 @@ fn write_cell(
         }
         (CellData::Image(binary), _) => {
             let image = Image::new_from_buffer(binary.as_slice())?;
-            worksheet.insert_image(row, column, &image)?;
-        }
-        (CellData::ImagePath(path), _) => {
-            let image = Image::new(path)?;
             worksheet.insert_image(row, column, &image)?;
         }
     }

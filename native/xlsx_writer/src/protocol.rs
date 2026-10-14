@@ -115,7 +115,6 @@ pub enum CellData<'a> {
     Blank(Vec<CellFormat>),
     RichString(Vec<(String, Vec<CellFormat>)>, Vec<CellFormat>),
     Image(Binary<'a>),
-    ImagePath(String),
 }
 
 /// Positions are decoded as `i64` and sizes as `f64` so that out-of-range or

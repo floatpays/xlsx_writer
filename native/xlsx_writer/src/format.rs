@@ -37,7 +37,7 @@ pub fn cell_format(data: &CellData) -> WriteResult<Option<Format>> {
         | CellData::Url(_, _, formats)
         | CellData::Blank(formats)
         | CellData::RichString(_, formats) => optional_format(formats),
-        CellData::Image(_) | CellData::ImagePath(_) => Ok(None),
+        CellData::Image(_) => Ok(None),
     }
 }
 

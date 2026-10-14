@@ -32,7 +32,6 @@ defmodule XlsxWriterTest do
            {:write, 9, 0, {:string, "this is new", [{:align, :right}]}},
            {:write, 0, 0, {:string, "this is new", [:bold, {:align, :center}]}},
            {:write, 0, 1, {:number, 12.12, []}},
-           {:write, 0, 3, {:image_path, "bird.jpeg"}},
            {:write, 1, 2, {:image, bird_content}},
            {:write, 2, 0, {:date, "2020-01-01", []}},
            {:set_column_width, 0, 30},
@@ -2037,7 +2036,9 @@ defmodule XlsxWriterTest do
             {:write, 0, 0, {:string, "x", [:bolt]}},
             {:set_column_width, 0, "wide"},
             {:write, 1.5, 0, {:string, "x", []}},
-            {:insert_note, 0, 0, 123, %XlsxWriter.NoteOptions{}}
+            {:insert_note, 0, 0, 123, %XlsxWriter.NoteOptions{}},
+            # The NIF never reads files: images are passed as binaries.
+            {:write, 0, 0, {:image_path, "bird.jpeg"}}
           ] do
         assert {:error, "invalid instruction #1 in sheet \"S\": " <> _} =
                  XlsxWriter.generate([{"S", [instruction]}])
