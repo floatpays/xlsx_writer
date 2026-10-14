@@ -43,6 +43,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native/xlsx_writer
       - uses: erlef/setup-beam@v1
         with:
           otp-version: ${{matrix.otp}}
@@ -54,13 +57,14 @@ jobs:
           path: |
             deps
             _build
+            !_build/*/lib/xlsx_writer
           key: ${{ runner.os }}[${{ matrix.otp }}/${{ matrix.elixir }}]-mix-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
       - run: mix deps.get
       - run: mix deps.compile
       - run: mix compile --warnings-as-errors
         env:
           RUST_BACKTRACE: 1
-      - run: mix test
+      - run: mix test --warnings-as-errors
 
   lint:
     env:
@@ -74,6 +78,9 @@ jobs:
         with:
           toolchain: stable
           components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native/xlsx_writer
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "28.5"
@@ -84,11 +91,12 @@ jobs:
           path: |
             deps
             _build
+            !_build/*/lib/xlsx_writer
           key: ${{ runner.os }}-lint-mix-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
       - run: mix deps.get
       - run: mix deps.compile
       - run: mix format --check-formatted
-      - run: mix credo
+      - run: mix credo --strict
       - name: Check Rust formatting
         working-directory: native/xlsx_writer
         run: cargo fmt --check
