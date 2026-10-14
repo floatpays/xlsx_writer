@@ -859,36 +859,34 @@ defmodule XlsxWriterTest do
                    end
     end
 
-    test "handles empty sheet name" do
+    test "returns an error for an empty sheet name" do
       sheet =
         XlsxWriter.new_sheet("")
         |> XlsxWriter.write(0, 0, "Text")
 
-      result = XlsxWriter.generate([sheet])
-      # Empty name might be invalid in Excel
-      assert match?({:ok, _}, result) or match?({:error, _}, result)
+      assert {:error, reason} = XlsxWriter.generate([sheet])
+      assert reason =~ "cannot be blank"
     end
 
-    test "handles very long sheet name" do
-      # Excel sheet names max at 31 characters
+    test "returns an error for a sheet name over 31 characters" do
       long_name = String.duplicate("a", 50)
 
       sheet =
         XlsxWriter.new_sheet(long_name)
         |> XlsxWriter.write(0, 0, "Text")
 
-      result = XlsxWriter.generate([sheet])
-      assert match?({:ok, _}, result) or match?({:error, _}, result)
+      assert {:error, reason} = XlsxWriter.generate([sheet])
+      assert reason =~ "exceeds Excel's limit of 31 characters"
     end
 
-    test "handles invalid characters in sheet name" do
-      # Excel doesn't allow: \ / ? * [ ]
+    test "returns an error for invalid characters in a sheet name" do
+      # Excel doesn't allow: \ / ? * [ ] :
       sheet =
         XlsxWriter.new_sheet("Invalid[Sheet]")
         |> XlsxWriter.write(0, 0, "Text")
 
-      result = XlsxWriter.generate([sheet])
-      assert match?({:ok, _}, result) or match?({:error, _}, result)
+      assert {:error, reason} = XlsxWriter.generate([sheet])
+      assert reason =~ "cannot contain invalid characters"
     end
 
     test "handles invalid formula syntax" do
@@ -1009,15 +1007,12 @@ defmodule XlsxWriterTest do
       assert <<80, _>> <> _ = content
     end
 
-    test "handles invalid image data" do
-      # Invalid binary should be caught by Rust
+    test "returns an error for invalid image data" do
       sheet =
         XlsxWriter.new_sheet("Test")
         |> XlsxWriter.write_image(0, 0, "not image data")
 
-      result = XlsxWriter.generate([sheet])
-      # Should return error from Rust
-      assert match?({:ok, _}, result) or match?({:error, _}, result)
+      assert {:error, "Unknown image type."} = XlsxWriter.generate([sheet])
     end
 
     test "raises error for empty binary as image" do
