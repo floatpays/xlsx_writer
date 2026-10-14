@@ -111,7 +111,8 @@ defmodule XlsxWriter.CommentTest do
       assert {:insert_note, 0, 0, "Explanation of value", _} =
                Enum.at(instructions, 0)
 
-      assert {:write, 0, 0, {:string, "Cell value"}} = Enum.at(instructions, 1)
+      assert {:write, 0, 0, {:string, "Cell value", []}} =
+               Enum.at(instructions, 1)
     end
 
     test "multiple comments can be added to different cells" do

@@ -31,7 +31,7 @@ defmodule XlsxWriter do
   ## API Overview
 
   ### Core Functions
-  - `generate/1` - Generate XLSX binary from sheets
+  - `generate/2` - Generate XLSX binary from sheets
   - `new_sheet/1` - Create a new worksheet
 
   ### Writing Data
@@ -71,7 +71,9 @@ defmodule XlsxWriter do
   ## Returns
 
   - `{:ok, xlsx_binary}` on success
-  - `{:error, reason}` on failure
+  - `{:error, reason}` on failure, for example an invalid sheet name, a
+    duplicate sheet name, an invalid URL or image, or an instruction that was
+    not built with the functions in this module
 
   ## Examples
 
@@ -81,36 +83,27 @@ defmodule XlsxWriter do
       iex> is_binary(xlsx_content)
       true
 
-      # With document properties
-      props = %XlsxWriter.WorkbookProperties{author: "John", title: "Report"}
-      {:ok, content} = XlsxWriter.generate([sheet], properties: props)
+      iex> sheet = XlsxWriter.new_sheet("Test") |> XlsxWriter.write(0, 0, "Hello")
+      iex> properties = %XlsxWriter.WorkbookProperties{author: "John", title: "Report"}
+      iex> {:ok, _content} = XlsxWriter.generate([sheet], properties: properties)
+
+      iex> XlsxWriter.generate([XlsxWriter.new_sheet("A"), XlsxWriter.new_sheet("A")])
+      {:error, "Worksheet name 'a' has already been used in this workbook."}
 
   """
   def generate(sheets, opts \\ []) when is_list(sheets) do
-    # It might not be important to reverse the instructions here
-    # but doing it to avoid potential confusion.
-    sheets =
-      Enum.map(sheets, fn {name, instructions} ->
-        {name, Enum.reverse(instructions)}
-      end)
+    sheets = Enum.map(sheets, &instructions_in_write_order/1)
 
-    result =
-      case Keyword.get(opts, :properties) do
-        nil ->
-          RustXlsxWriter.write(sheets)
-
-        %XlsxWriter.WorkbookProperties{} = properties ->
-          RustXlsxWriter.write_with_properties(sheets, properties)
-      end
-
-    case result do
-      {:ok, content} ->
-        {:ok, IO.iodata_to_binary(content)}
-
-      other ->
-        other
-    end
+    RustXlsxWriter.write(sheets, Keyword.get(opts, :properties))
   end
+
+  # Instructions are prepended as they are added. Restore the order they were
+  # added in, so that a later write to the same cell wins.
+  defp instructions_in_write_order({name, instructions})
+       when is_list(instructions), do: {name, Enum.reverse(instructions)}
+
+  # Anything else is reported by the NIF as an invalid sheet.
+  defp instructions_in_write_order(other), do: other
 
   @doc """
   Creates a new empty sheet with the given name.
@@ -134,8 +127,20 @@ defmodule XlsxWriter do
   @doc """
   Writes a value to a specific cell in the sheet.
 
-  Supports various data types including strings, numbers, dates, and Decimal values.
-  Can also apply formatting options to the cell.
+  Supports strings, numbers, booleans, `Decimal`, `Date`, `DateTime`,
+  `NaiveDateTime`, atoms (written as strings) and `nil` (written as an empty
+  string). Can also apply formatting options to the cell.
+
+  `Date` values get the number format `yyyy-mm-dd` and `DateTime` /
+  `NaiveDateTime` values `yyyy-mm-ddThh:mm:ss`, unless a `{:num_format, ...}`
+  option overrides it.
+
+  > #### Time zones {: .info}
+  >
+  > Excel has no notion of time zones, so a `DateTime` is written as its
+  > wall-clock time and its UTC offset is dropped: `10:00:00+02:00` is
+  > written as `10:00:00`. Shift it first (e.g. with `DateTime.shift_zone!/2`)
+  > if you need the time in a particular zone.
 
   ## Parameters
 
@@ -154,15 +159,15 @@ defmodule XlsxWriter do
     - `:superscript` - Superscript text
     - `:subscript` - Subscript text
     - `:text_wrap` - Wrap text within the cell
-    - `{:rotation, angle}` - Rotate text (-90 to 90 degrees, or 270 for vertical stacked text)
+    - `{:rotation, angle}` - Rotate text (integer, -90 to 90 degrees, or 270 for vertical stacked text)
     - `:shrink` - Shrink text to fit within the cell width
-    - `{:indent, level}` - Indent text by the given level (integer)
+    - `{:indent, level}` - Indent text by the given level (integer, 0 to 250)
     - `{:align, :left | :center | :right}` - Horizontal text alignment
     - `{:valign, :top | :center | :bottom | :justify | :distributed}` - Vertical text alignment
     - `{:num_format, format_string}` - Custom number format
     - `{:bg_color, hex_color}` - Background color (e.g., "#FFFF00" for yellow)
     - `{:font_color, hex_color}` - Font color (e.g., "#FF0000" for red)
-    - `{:font_size, size}` - Font size in points (e.g., 12, 14, 16)
+    - `{:font_size, size}` - Font size in points, integer or float (e.g., 12, 10.5), greater than 0 and at most 409
     - `{:font_name, name}` - Font family (e.g., "Arial", "Times New Roman")
     - `{:underline, :single | :double | :single_accounting | :double_accounting}` - Underline style
     - `{:pattern, :solid | :none | :gray125 | :gray0625}` - Fill pattern
@@ -177,6 +182,9 @@ defmodule XlsxWriter do
     - `{:border_left_color, hex_color}` - Left border color
     - `{:border_right_color, hex_color}` - Right border color
 
+  Colors are hex strings of the form `"#RRGGBB"` (case-insensitive; the `#`
+  is optional).
+
   ## Border Styles
 
   Available border styles: `:thin`, `:medium`, `:thick`, `:dashed`, `:dotted`, `:double`,
@@ -190,36 +198,27 @@ defmodule XlsxWriter do
   ## Examples
 
       iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.write(sheet, 0, 0, "Hello")
-      iex> {"Test", [{:write, 0, 0, {:string, "Hello"}}]} = sheet
+      iex> XlsxWriter.write(sheet, 0, 0, "Hello")
+      {"Test", [{:write, 0, 0, {:string, "Hello", []}}]}
 
       iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.write(sheet, 0, 0, "Bold", format: [:bold])
-      iex> {"Test", [{:write, 0, 0, {:string_with_format, "Bold", [:bold]}}]} = sheet
+      iex> XlsxWriter.write(sheet, 0, 0, "Bold", format: [:bold])
+      {"Test", [{:write, 0, 0, {:string, "Bold", [:bold]}}]}
 
       iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.write(sheet, 0, 0, "Yellow", format: [{:bg_color, "#FFFF00"}])
-      iex> {"Test", [{:write, 0, 0, {:string_with_format, "Yellow", [{:bg_color, "#FFFF00"}]}}]} = sheet
+      iex> XlsxWriter.write(sheet, 0, 0, 42, format: [{:num_format, "0.00"}])
+      {"Test", [{:write, 0, 0, {:number, 42.0, [{:num_format, "0.00"}]}}]}
 
       iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.write(sheet, 0, 0, "Red Italic", format: [:italic, {:font_color, "#FF0000"}])
-      iex> {"Test", [{:write, 0, 0, {:string_with_format, "Red Italic", [:italic, {:font_color, "#FF0000"}]}}]} = sheet
-
-      iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.write(sheet, 0, 0, "Bordered", format: [{:border, :thin}])
-      iex> {"Test", [{:write, 0, 0, {:string_with_format, "Bordered", [{:border, :thin}]}}]} = sheet
+      iex> XlsxWriter.write(sheet, 0, 0, "Red Italic", format: [:italic, {:font_color, "#FF0000"}])
+      {"Test", [{:write, 0, 0, {:string, "Red Italic", [:italic, {:font_color, "#FF0000"}]}}]}
 
   """
   def write({name, instructions}, row, col, val, opts \\ []) do
     Validation.validate_cell_position!(row, col)
+    cell_data = to_cell_data(val, format_option!(opts))
 
-    case Keyword.get(opts, :format) do
-      nil ->
-        {name, [{:write, row, col, to_rust_val(val)} | instructions]}
-
-      formats when is_list(formats) ->
-        write_with_format({name, instructions}, row, col, val, formats)
-    end
+    {name, [{:write, row, col, cell_data} | instructions]}
   end
 
   @doc """
@@ -235,7 +234,7 @@ defmodule XlsxWriter do
 
   ## Options
 
-  - `:format` - A list of format specifications
+  - `:format` - A list of format specifications (see `write/5`)
 
   ## Returns
 
@@ -244,30 +243,19 @@ defmodule XlsxWriter do
   ## Examples
 
       iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.write_formula(sheet, 0, 2, "=A1+B1")
-      iex> {"Test", [{:write, 0, 2, {:formula, "=A1+B1"}}]} = sheet
+      iex> XlsxWriter.write_formula(sheet, 0, 2, "=A1+B1")
+      {"Test", [{:write, 0, 2, {:formula, "=A1+B1", []}}]}
 
       iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.write_formula(sheet, 0, 2, "=A1+B1", format: [:bold])
-      iex> {"Test", [{:write, 0, 2, {:formula_with_format, "=A1+B1", [:bold]}}]} = sheet
+      iex> XlsxWriter.write_formula(sheet, 0, 2, "=A1+B1", format: [:bold])
+      {"Test", [{:write, 0, 2, {:formula, "=A1+B1", [:bold]}}]}
 
   """
   def write_formula({name, instructions}, row, col, val, opts \\ []) do
     Validation.validate_cell_position!(row, col)
+    formats = format_option!(opts)
 
-    case Keyword.get(opts, :format) do
-      nil ->
-        {name, [{:write, row, col, {:formula, val}} | instructions]}
-
-      formats when is_list(formats) ->
-        Validation.validate_formats!(formats)
-
-        {name,
-         [
-           {:write, row, col, {:formula_with_format, val, formats}}
-           | instructions
-         ]}
-    end
+    {name, [{:write, row, col, {:formula, val, formats}} | instructions]}
   end
 
   @doc """
@@ -288,31 +276,20 @@ defmodule XlsxWriter do
   ## Examples
 
       iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.write_boolean(sheet, 0, 0, true)
-      iex> {"Test", [{:write, 0, 0, {:boolean, true}}]} = sheet
+      iex> XlsxWriter.write_boolean(sheet, 0, 0, true)
+      {"Test", [{:write, 0, 0, {:boolean, true, []}}]}
 
       iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.write_boolean(sheet, 0, 0, false, format: [:bold])
-      iex> {"Test", [{:write, 0, 0, {:boolean_with_format, false, [:bold]}}]} = sheet
+      iex> XlsxWriter.write_boolean(sheet, 0, 0, false, format: [:bold])
+      {"Test", [{:write, 0, 0, {:boolean, false, [:bold]}}]}
 
   """
   def write_boolean({name, instructions}, row, col, val, opts \\ [])
       when is_boolean(val) do
     Validation.validate_cell_position!(row, col)
+    formats = format_option!(opts)
 
-    case Keyword.get(opts, :format) do
-      nil ->
-        {name, [{:write, row, col, {:boolean, val}} | instructions]}
-
-      formats when is_list(formats) ->
-        Validation.validate_formats!(formats)
-
-        {name,
-         [
-           {:write, row, col, {:boolean_with_format, val, formats}}
-           | instructions
-         ]}
-    end
+    {name, [{:write, row, col, {:boolean, val, formats}} | instructions]}
   end
 
   @doc """
@@ -326,7 +303,8 @@ defmodule XlsxWriter do
   - `url` - The URL string
   - `opts` - Optional keyword list with:
     - `:text` - Display text (different from URL)
-    - `:format` - Format specifications
+    - `:format` - Format specifications. Without it the cell gets Excel's
+      default hyperlink style.
 
   ## Returns
 
@@ -335,38 +313,21 @@ defmodule XlsxWriter do
   ## Examples
 
       iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.write_url(sheet, 0, 0, "https://example.com")
-      iex> {"Test", [{:write, 0, 0, {:url, "https://example.com"}}]} = sheet
+      iex> XlsxWriter.write_url(sheet, 0, 0, "https://example.com")
+      {"Test", [{:write, 0, 0, {:url, "https://example.com", nil, []}}]}
 
       iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.write_url(sheet, 0, 0, "https://example.com", text: "Click here")
-      iex> {"Test", [{:write, 0, 0, {:url_with_text, "https://example.com", "Click here"}}]} = sheet
+      iex> XlsxWriter.write_url(sheet, 0, 0, "https://example.com", text: "Click here")
+      {"Test", [{:write, 0, 0, {:url, "https://example.com", "Click here", []}}]}
 
   """
   def write_url({name, instructions}, row, col, url, opts \\ [])
       when is_binary(url) do
     Validation.validate_cell_position!(row, col)
     text = Keyword.get(opts, :text)
-    formats = Keyword.get(opts, :format)
+    formats = format_option!(opts)
 
-    if formats && is_list(formats), do: Validation.validate_formats!(formats)
-
-    instruction =
-      case {text, formats} do
-        {nil, nil} ->
-          {:write, row, col, {:url, url}}
-
-        {text, nil} when is_binary(text) ->
-          {:write, row, col, {:url_with_text, url, text}}
-
-        {nil, formats} when is_list(formats) ->
-          {:write, row, col, {:url_with_format, url, formats}}
-
-        {text, formats} when is_binary(text) and is_list(formats) ->
-          {:write, row, col, {:url_with_text_and_format, url, text, formats}}
-      end
-
-    {name, [instruction | instructions]}
+    {name, [{:write, row, col, {:url, url, text, formats}} | instructions]}
   end
 
   @doc """
@@ -389,102 +350,15 @@ defmodule XlsxWriter do
   ## Examples
 
       iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.write_blank(sheet, 0, 0, format: [:bold, {:bg_color, "#FFFF00"}])
-      iex> {"Test", [{:write, 0, 0, {:blank, [:bold, {:bg_color, "#FFFF00"}]}}]} = sheet
+      iex> XlsxWriter.write_blank(sheet, 0, 0, format: [:bold, {:bg_color, "#FFFF00"}])
+      {"Test", [{:write, 0, 0, {:blank, [:bold, {:bg_color, "#FFFF00"}]}}]}
 
   """
   def write_blank({name, instructions}, row, col, opts \\ []) do
     Validation.validate_cell_position!(row, col)
-    formats = Keyword.get(opts, :format, [])
-
-    if is_list(formats) && formats != [],
-      do: Validation.validate_formats!(formats)
+    formats = format_option!(opts)
 
     {name, [{:write, row, col, {:blank, formats}} | instructions]}
-  end
-
-  defp write_with_format(sheet, row, col, nil, formats) do
-    write_with_format(sheet, row, col, "", formats)
-  end
-
-  defp write_with_format(sheet, row, col, %Decimal{} = val, formats) do
-    write_with_format(sheet, row, col, Decimal.to_float(val), formats)
-  end
-
-  defp write_with_format({name, instructions}, row, col, %Date{} = val, formats) do
-    Validation.validate_formats!(formats)
-
-    instruction =
-      {:write, row, col, {:date_with_format, Date.to_iso8601(val), formats}}
-
-    {name, [instruction | instructions]}
-  end
-
-  defp write_with_format(
-         {name, instructions},
-         row,
-         col,
-         %DateTime{} = val,
-         formats
-       ) do
-    Validation.validate_formats!(formats)
-
-    instruction =
-      {:write, row, col,
-       {:date_time_with_format, DateTime.to_iso8601(val), formats}}
-
-    {name, [instruction | instructions]}
-  end
-
-  defp write_with_format(
-         {name, instructions},
-         row,
-         col,
-         %NaiveDateTime{} = val,
-         formats
-       ) do
-    Validation.validate_formats!(formats)
-
-    instruction =
-      {:write, row, col,
-       {:date_time_with_format, NaiveDateTime.to_iso8601(val), formats}}
-
-    {name, [instruction | instructions]}
-  end
-
-  defp write_with_format({name, instructions}, row, col, val, formats)
-       when is_binary(val) do
-    Validation.validate_formats!(formats)
-    instruction = {:write, row, col, {:string_with_format, val, formats}}
-
-    {name, [instruction | instructions]}
-  end
-
-  defp write_with_format({name, instructions}, row, col, val, formats)
-       when is_boolean(val) do
-    Validation.validate_formats!(formats)
-    instruction = {:write, row, col, {:boolean_with_format, val, formats}}
-
-    {name, [instruction | instructions]}
-  end
-
-  defp write_with_format({name, instructions}, row, col, numeric_val, formats)
-       when is_number(numeric_val) do
-    Validation.validate_formats!(formats)
-
-    instruction =
-      {:write, row, col, {:number_with_format, numeric_val, formats}}
-
-    {name, [instruction | instructions]}
-  end
-
-  defp write_with_format(sheet, row, col, val, formats) when is_atom(val) do
-    write_with_format(sheet, row, col, Atom.to_string(val), formats)
-  end
-
-  defp write_with_format(_sheet, _row, _col, val, _formats) do
-    raise XlsxWriter.Error,
-          "The data type for value \"#{inspect(val)}\" is not supported."
   end
 
   @doc """
@@ -499,7 +373,7 @@ defmodule XlsxWriter do
   - `row` - The row index (0-based)
   - `col` - The column index (0-based)
   - `segments` - A list of `{text, formats}` tuples, where:
-    - `text` is a string
+    - `text` is a non-empty string
     - `formats` is a list of format options (can be empty `[]` for default formatting)
   - `opts` - Optional keyword list with:
     - `:format` - Cell-level formatting (alignment, borders, background, etc.)
@@ -525,46 +399,36 @@ defmodule XlsxWriter do
 
       # Simple bold and normal text
       iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.write_rich_string(sheet, 0, 0, [
+      iex> XlsxWriter.write_rich_string(sheet, 0, 0, [
       ...>   {"Bold ", [:bold]},
       ...>   {"Normal", []}
       ...> ])
-      iex> {"Test", [{:write, 0, 0, {:rich_string, [{"Bold ", [:bold]}, {"Normal", []}]}}]} = sheet
+      {"Test", [{:write, 0, 0, {:rich_string, [{"Bold ", [:bold]}, {"Normal", []}], []}}]}
 
       # Colored text segments
       iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.write_rich_string(sheet, 0, 0, [
+      iex> XlsxWriter.write_rich_string(sheet, 0, 0, [
       ...>   {"Red ", [{:font_color, "#FF0000"}]},
       ...>   {"Blue", [{:font_color, "#0000FF"}]}
       ...> ])
-      iex> {"Test", [{:write, 0, 0, {:rich_string, [{"Red ", [{:font_color, "#FF0000"}]}, {"Blue", [{:font_color, "#0000FF"}]}]}}]} = sheet
+      {"Test", [{:write, 0, 0, {:rich_string, [{"Red ", [{:font_color, "#FF0000"}]}, {"Blue", [{:font_color, "#0000FF"}]}], []}}]}
 
       # With cell-level formatting (centered)
       iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.write_rich_string(sheet, 0, 0, [
+      iex> XlsxWriter.write_rich_string(sheet, 0, 0, [
       ...>   {"Bold ", [:bold]},
       ...>   {"Italic", [:italic]}
       ...> ], format: [{:align, :center}])
-      iex> {"Test", [{:write, 0, 0, {:rich_string_with_format, [{"Bold ", [:bold]}, {"Italic", [:italic]}], [{:align, :center}]}}]} = sheet
+      {"Test", [{:write, 0, 0, {:rich_string, [{"Bold ", [:bold]}, {"Italic", [:italic]}], [{:align, :center}]}}]}
 
   """
   def write_rich_string({name, instructions}, row, col, segments, opts \\ []) do
     Validation.validate_cell_position!(row, col)
     Validation.validate_rich_string_segments!(segments)
+    formats = format_option!(opts)
 
-    case Keyword.get(opts, :format) do
-      nil ->
-        {name, [{:write, row, col, {:rich_string, segments}} | instructions]}
-
-      formats when is_list(formats) ->
-        Validation.validate_formats!(formats)
-
-        {name,
-         [
-           {:write, row, col, {:rich_string_with_format, segments, formats}}
-           | instructions
-         ]}
-    end
+    {name,
+     [{:write, row, col, {:rich_string, segments, formats}} | instructions]}
   end
 
   @doc """
@@ -611,8 +475,8 @@ defmodule XlsxWriter do
   - `opts` - Optional keyword list:
     - `:author` - Author name (string, max 52 characters)
     - `:visible` - Whether to show the comment by default (boolean, default: false)
-    - `:width` - Comment box width in pixels (integer, default: 128)
-    - `:height` - Comment box height in pixels (integer, default: 74)
+    - `:width` - Comment box width in pixels (number >= 1, rounded to whole pixels, default: 128)
+    - `:height` - Comment box height in pixels (number >= 1, rounded to whole pixels, default: 74)
 
   ## Returns
 
@@ -666,7 +530,8 @@ defmodule XlsxWriter do
 
   - `sheet` - The sheet tuple `{name, instructions}`
   - `col` - The column index (0-based)
-  - `width` - The width value (typically a float)
+  - `width` - The width in Excel character units, an integer or float
+    between 0 and 255
 
   ## Returns
 
@@ -675,8 +540,12 @@ defmodule XlsxWriter do
   ## Examples
 
       iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.set_column_width(sheet, 0, 25)
-      iex> {"Test", [{:set_column_width, 0, 25}]} = sheet
+      iex> XlsxWriter.set_column_width(sheet, 0, 25)
+      {"Test", [{:set_column_width, 0, 25}]}
+
+      iex> sheet = XlsxWriter.new_sheet("Test")
+      iex> XlsxWriter.set_column_width(sheet, 0, 12.5)
+      {"Test", [{:set_column_width, 0, 12.5}]}
 
   """
   def set_column_width({name, instructions}, col, width) do
@@ -690,7 +559,7 @@ defmodule XlsxWriter do
 
   - `sheet` - The sheet tuple `{name, instructions}`
   - `row` - The row index (0-based)
-  - `height` - The height value (typically a float)
+  - `height` - The height in points, an integer or float between 0 and 409
 
   ## Returns
 
@@ -699,8 +568,8 @@ defmodule XlsxWriter do
   ## Examples
 
       iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.set_row_height(sheet, 0, 30.0)
-      iex> {"Test", [{:set_row_height, 0, 30.0}]} = sheet
+      iex> XlsxWriter.set_row_height(sheet, 0, 30.0)
+      {"Test", [{:set_row_height, 0, 30.0}]}
 
   """
   def set_row_height({name, instructions}, row, height) do
@@ -726,8 +595,8 @@ defmodule XlsxWriter do
   ## Examples
 
       iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.set_column_range_width(sheet, 0, 4, 20)
-      iex> {"Test", [{:set_column_range_width, 0, 4, 20}]} = sheet
+      iex> XlsxWriter.set_column_range_width(sheet, 0, 4, 20)
+      {"Test", [{:set_column_range_width, 0, 4, 20}]}
 
   """
   def set_column_range_width({name, instructions}, first_col, last_col, width) do
@@ -754,8 +623,8 @@ defmodule XlsxWriter do
   ## Examples
 
       iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.set_row_range_height(sheet, 0, 9, 25)
-      iex> {"Test", [{:set_row_range_height, 0, 9, 25}]} = sheet
+      iex> XlsxWriter.set_row_range_height(sheet, 0, 9, 25)
+      {"Test", [{:set_row_range_height, 0, 9, 25}]}
 
   """
   def set_row_range_height({name, instructions}, first_row, last_row, height) do
@@ -783,18 +652,18 @@ defmodule XlsxWriter do
 
       # Freeze the first row (header row)
       iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.freeze_panes(sheet, 1, 0)
-      iex> {"Test", [{:set_freeze_panes, 1, 0}]} = sheet
+      iex> XlsxWriter.freeze_panes(sheet, 1, 0)
+      {"Test", [{:set_freeze_panes, 1, 0}]}
 
       # Freeze first column
       iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.freeze_panes(sheet, 0, 1)
-      iex> {"Test", [{:set_freeze_panes, 0, 1}]} = sheet
+      iex> XlsxWriter.freeze_panes(sheet, 0, 1)
+      {"Test", [{:set_freeze_panes, 0, 1}]}
 
       # Freeze first row and first column
       iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.freeze_panes(sheet, 1, 1)
-      iex> {"Test", [{:set_freeze_panes, 1, 1}]} = sheet
+      iex> XlsxWriter.freeze_panes(sheet, 1, 1)
+      {"Test", [{:set_freeze_panes, 1, 1}]}
 
   """
   def freeze_panes({name, instructions}, row, col) do
@@ -816,8 +685,8 @@ defmodule XlsxWriter do
   ## Examples
 
       iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.hide_row(sheet, 5)
-      iex> {"Test", [{:set_row_hidden, 5}]} = sheet
+      iex> XlsxWriter.hide_row(sheet, 5)
+      {"Test", [{:set_row_hidden, 5}]}
 
   """
   def hide_row({name, instructions}, row) do
@@ -839,8 +708,8 @@ defmodule XlsxWriter do
   ## Examples
 
       iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.hide_column(sheet, 2)
-      iex> {"Test", [{:set_column_hidden, 2}]} = sheet
+      iex> XlsxWriter.hide_column(sheet, 2)
+      {"Test", [{:set_column_hidden, 2}]}
 
   """
   def hide_column({name, instructions}, col) do
@@ -868,8 +737,8 @@ defmodule XlsxWriter do
 
       # Set autofilter on header row (row 0, columns A-E)
       iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.set_autofilter(sheet, 0, 0, 0, 4)
-      iex> {"Test", [{:set_autofilter, 0, 0, 0, 4}]} = sheet
+      iex> XlsxWriter.set_autofilter(sheet, 0, 0, 0, 4)
+      {"Test", [{:set_autofilter, 0, 0, 0, 4}]}
 
   """
   def set_autofilter(
@@ -890,8 +759,9 @@ defmodule XlsxWriter do
   Enables autofit for all columns in the sheet.
 
   Automatically adjusts column widths to fit the longest content in each column.
-  This is applied after all data is written. Note that explicit column widths
-  set via `set_column_width/3` will take precedence.
+  Autofit is applied after all data is written, wherever `autofit/1` appears
+  in the pipeline, and explicit column widths set via `set_column_width/3`
+  or `set_column_range_width/4` take precedence over it.
 
   ## Parameters
 
@@ -904,8 +774,8 @@ defmodule XlsxWriter do
   ## Examples
 
       iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.autofit(sheet)
-      iex> {"Test", [:set_autofit]} = sheet
+      iex> XlsxWriter.autofit(sheet)
+      {"Test", [:set_autofit]}
 
   """
   def autofit({name, instructions}) do
@@ -930,8 +800,8 @@ defmodule XlsxWriter do
   ## Examples
 
       iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.set_tab_color(sheet, "#FF0000")
-      iex> {"Test", [{:set_tab_color, "#FF0000"}]} = sheet
+      iex> XlsxWriter.set_tab_color(sheet, "#FF0000")
+      {"Test", [{:set_tab_color, "#FF0000"}]}
 
   """
   def set_tab_color({name, instructions}, color) when is_binary(color) do
@@ -943,6 +813,10 @@ defmodule XlsxWriter do
 
   The merged cell will contain the specified value and formatting.
   All merged cells will appear as one cell in Excel.
+
+  The value can be any type `write/5` accepts and keeps its type: numbers,
+  booleans and dates are written as such, not as text. Dates get the same
+  default number formats as in `write/5`.
 
   ## Parameters
 
@@ -962,13 +836,13 @@ defmodule XlsxWriter do
 
       # Merge cells A1:D1 with centered title
       iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.merge_range(sheet, 0, 0, 0, 3, "Title", format: [:bold, {:align, :center}])
-      iex> {"Test", [{:merge_range, 0, 0, 0, 3, {:string_with_format, "Title", [:bold, {:align, :center}]}}]} = sheet
+      iex> XlsxWriter.merge_range(sheet, 0, 0, 0, 3, "Title", format: [:bold, {:align, :center}])
+      {"Test", [{:merge_range, 0, 0, 0, 3, {:string, "Title", [:bold, {:align, :center}]}}]}
 
       # Merge cells for a number
       iex> sheet = XlsxWriter.new_sheet("Test")
-      iex> sheet = XlsxWriter.merge_range(sheet, 1, 1, 3, 1, 100)
-      iex> {"Test", [{:merge_range, 1, 1, 3, 1, {:float, 100}}]} = sheet
+      iex> XlsxWriter.merge_range(sheet, 1, 1, 3, 1, 100)
+      {"Test", [{:merge_range, 1, 1, 3, 1, {:number, 100.0, []}}]}
 
   """
   def merge_range(
@@ -980,231 +854,69 @@ defmodule XlsxWriter do
         val,
         opts \\ []
       ) do
-    case Keyword.get(opts, :format) do
-      nil ->
-        {name,
-         [
-           {:merge_range, first_row, first_col, last_row, last_col,
-            to_rust_val(val)}
-           | instructions
-         ]}
+    cell_data = to_cell_data(val, format_option!(opts))
 
-      formats when is_list(formats) ->
-        merge_range_with_format(
-          {name, instructions},
-          first_row,
-          first_col,
-          last_row,
-          last_col,
-          val,
-          formats
-        )
-    end
+    {name,
+     [
+       {:merge_range, first_row, first_col, last_row, last_col, cell_data}
+       | instructions
+     ]}
   end
 
-  defp merge_range_with_format(
-         sheet,
-         first_row,
-         first_col,
-         last_row,
-         last_col,
-         nil,
-         formats
-       ) do
-    merge_range_with_format(
-      sheet,
-      first_row,
-      first_col,
-      last_row,
-      last_col,
-      "",
-      formats
-    )
-  end
-
-  defp merge_range_with_format(
-         sheet,
-         first_row,
-         first_col,
-         last_row,
-         last_col,
-         %Decimal{} = val,
-         formats
-       ) do
-    merge_range_with_format(
-      sheet,
-      first_row,
-      first_col,
-      last_row,
-      last_col,
-      Decimal.to_float(val),
-      formats
-    )
-  end
-
-  defp merge_range_with_format(
-         {name, instructions},
-         first_row,
-         first_col,
-         last_row,
-         last_col,
-         %Date{} = val,
-         formats
-       ) do
+  defp format_option!(opts) do
+    formats = Keyword.get(opts, :format, [])
     Validation.validate_formats!(formats)
-
-    instruction =
-      {:merge_range, first_row, first_col, last_row, last_col,
-       {:date_with_format, Date.to_iso8601(val), formats}}
-
-    {name, [instruction | instructions]}
+    formats
   end
 
-  defp merge_range_with_format(
-         {name, instructions},
-         first_row,
-         first_col,
-         last_row,
-         last_col,
-         %DateTime{} = val,
-         formats
-       ) do
-    Validation.validate_formats!(formats)
+  # Converts an Elixir value into the cell data understood by the NIF.
+  defp to_cell_data(nil, formats), do: {:string, "", formats}
 
-    instruction =
-      {:merge_range, first_row, first_col, last_row, last_col,
-       {:date_time_with_format, DateTime.to_iso8601(val), formats}}
+  defp to_cell_data(value, formats) when is_binary(value),
+    do: {:string, value, formats}
 
-    {name, [instruction | instructions]}
+  defp to_cell_data(value, formats) when is_boolean(value),
+    do: {:boolean, value, formats}
+
+  defp to_cell_data(value, formats) when is_atom(value),
+    do: {:string, Atom.to_string(value), formats}
+
+  defp to_cell_data(value, formats) when is_float(value),
+    do: {:number, value, formats}
+
+  defp to_cell_data(value, formats) when is_integer(value),
+    do: {:number, integer_to_float!(value), formats}
+
+  defp to_cell_data(%Decimal{} = value, formats),
+    do: {:number, Decimal.to_float(value), formats}
+
+  defp to_cell_data(%Date{} = value, formats),
+    do: {:date, Date.to_iso8601(value), formats}
+
+  # Excel has no time zones: write the wall-clock time and drop the offset.
+  defp to_cell_data(%DateTime{} = value, formats) do
+    {:date_time, value |> DateTime.to_naive() |> NaiveDateTime.to_iso8601(),
+     formats}
   end
 
-  defp merge_range_with_format(
-         {name, instructions},
-         first_row,
-         first_col,
-         last_row,
-         last_col,
-         %NaiveDateTime{} = val,
-         formats
-       ) do
-    Validation.validate_formats!(formats)
+  defp to_cell_data(%NaiveDateTime{} = value, formats),
+    do: {:date_time, NaiveDateTime.to_iso8601(value), formats}
 
-    instruction =
-      {:merge_range, first_row, first_col, last_row, last_col,
-       {:date_time_with_format, NaiveDateTime.to_iso8601(val), formats}}
-
-    {name, [instruction | instructions]}
-  end
-
-  defp merge_range_with_format(
-         {name, instructions},
-         first_row,
-         first_col,
-         last_row,
-         last_col,
-         val,
-         formats
-       )
-       when is_binary(val) do
-    Validation.validate_formats!(formats)
-
-    instruction =
-      {:merge_range, first_row, first_col, last_row, last_col,
-       {:string_with_format, val, formats}}
-
-    {name, [instruction | instructions]}
-  end
-
-  defp merge_range_with_format(
-         {name, instructions},
-         first_row,
-         first_col,
-         last_row,
-         last_col,
-         val,
-         formats
-       )
-       when is_boolean(val) do
-    Validation.validate_formats!(formats)
-
-    instruction =
-      {:merge_range, first_row, first_col, last_row, last_col,
-       {:boolean_with_format, val, formats}}
-
-    {name, [instruction | instructions]}
-  end
-
-  defp merge_range_with_format(
-         {name, instructions},
-         first_row,
-         first_col,
-         last_row,
-         last_col,
-         numeric_val,
-         formats
-       )
-       when is_number(numeric_val) do
-    Validation.validate_formats!(formats)
-
-    instruction =
-      {:merge_range, first_row, first_col, last_row, last_col,
-       {:number_with_format, numeric_val, formats}}
-
-    {name, [instruction | instructions]}
-  end
-
-  defp merge_range_with_format(
-         sheet,
-         first_row,
-         first_col,
-         last_row,
-         last_col,
-         val,
-         formats
-       )
-       when is_atom(val) do
-    merge_range_with_format(
-      sheet,
-      first_row,
-      first_col,
-      last_row,
-      last_col,
-      Atom.to_string(val),
-      formats
-    )
-  end
-
-  defp merge_range_with_format(
-         _sheet,
-         _first_row,
-         _first_col,
-         _last_row,
-         _last_col,
-         val,
-         _formats
-       ) do
+  defp to_cell_data(value, _formats) do
     raise XlsxWriter.Error,
-          "The data type for value \"#{inspect(val)}\" is not supported."
+          "The data type for value #{inspect(value)} is not supported."
   end
 
-  defp to_rust_val(%Decimal{} = amount), do: {:float, Decimal.to_float(amount)}
-  defp to_rust_val(%Date{} = date), do: {:date, Date.to_iso8601(date)}
-
-  defp to_rust_val(%DateTime{} = datetime),
-    do: {:date_time, DateTime.to_iso8601(datetime)}
-
-  defp to_rust_val(%NaiveDateTime{} = datetime),
-    do: {:date_time, NaiveDateTime.to_iso8601(datetime)}
-
-  defp to_rust_val(val) when is_binary(val), do: {:string, val}
-  defp to_rust_val(val) when is_float(val), do: {:float, val}
-  defp to_rust_val(val) when is_integer(val), do: {:float, val}
-  defp to_rust_val(nil), do: {:string, ""}
-  defp to_rust_val(val) when is_boolean(val), do: {:boolean, val}
-  defp to_rust_val(val) when is_atom(val), do: {:string, Atom.to_string(val)}
-
-  defp to_rust_val(other) do
-    raise XlsxWriter.Error,
-          "The data type for value \"#{inspect(other)}\" is not supported."
+  # Excel stores every number as a double.
+  defp integer_to_float!(value) do
+    :erlang.float(value)
+  rescue
+    ArgumentError ->
+      reraise ArgumentError,
+              [
+                message:
+                  "Integer #{value} is too large to be stored as an Excel number"
+              ],
+              __STACKTRACE__
   end
 end

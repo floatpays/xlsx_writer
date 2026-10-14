@@ -37,8 +37,5 @@ defmodule XlsxWriter.RustXlsxWriter do
     targets: targets,
     nif_versions: nif_versions
 
-  def write(_data), do: :erlang.nif_error(:nif_not_loaded)
-
-  def write_with_properties(_data, _properties),
-    do: :erlang.nif_error(:nif_not_loaded)
+  def write(_sheets, _properties), do: :erlang.nif_error(:nif_not_loaded)
 end

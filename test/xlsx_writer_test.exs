@@ -1,23 +1,40 @@
 defmodule XlsxWriterTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
+
+  import XlsxWriter.TestHelpers
 
   doctest XlsxWriter
 
+  # Values of unsupported types, passed through the test context so the type
+  # checker cannot prove that the calls using them fail, which is exactly
+  # what those tests assert at runtime.
+  setup do
+    %{
+      untyped: %{
+        pid: self(),
+        function: fn -> :ok end,
+        reference: make_ref(),
+        map: %{foo: "bar"},
+        list: [1, 2, 3],
+        tuple: {:ok, "value"},
+        integer: 123
+      }
+    }
+  end
+
   describe "write/1" do
-    test "write xlsx file" do
+    test "write xlsx file from raw instructions" do
       bird_content = File.read!("bird.jpeg")
 
       sheets = [
         {"foobar",
          [
-           {:write, 9, 0,
-            {:string_with_format, "this is new", [{:align, :right}]}},
-           {:write, 0, 0,
-            {:string_with_format, "this is new", [:bold, {:align, :center}]}},
-           {:write, 0, 1, {:float, 12.12}},
+           {:write, 9, 0, {:string, "this is new", [{:align, :right}]}},
+           {:write, 0, 0, {:string, "this is new", [:bold, {:align, :center}]}},
+           {:write, 0, 1, {:number, 12.12, []}},
            {:write, 0, 3, {:image_path, "bird.jpeg"}},
            {:write, 1, 2, {:image, bird_content}},
-           {:write, 2, 0, {:date, "2020-01-01"}},
+           {:write, 2, 0, {:date, "2020-01-01", []}},
            {:set_column_width, 0, 30},
            {:set_row_height, 0, 30}
          ]},
@@ -25,31 +42,34 @@ defmodule XlsxWriterTest do
       ]
 
       assert {:ok, content} = XlsxWriter.generate(sheets)
+      assert <<"PK", _rest::binary>> = content
 
-      assert <<80, _>> <> _ = content
-
-      File.write!("test1.xlsx", content)
+      sheet_xml = xlsx_part(content, "xl/worksheets/sheet1.xml")
+      assert sheet_xml =~ ~s(<c r="B1"><v>12.12</v></c>)
+      assert sheet_xml =~ ~r/<c r="A3" s="\d+"><v>43831<\/v><\/c>/
+      assert xlsx_part(content, "xl/worksheets/sheet2.xml")
+      assert xlsx_part(content, "xl/media/image1.jpeg") == bird_content
     end
 
     test "write simple file with some plain text data" do
       sheets = [
         {"sheet1",
          [
-           {:write, 2, 1, {:string, ""}},
-           {:write, 2, 0, {:string, "foo"}},
-           {:write, 0, 1, {:string, "h2"}},
-           {:write, 0, 0, {:string, "h1"}}
+           {:write, 2, 1, {:string, "", []}},
+           {:write, 2, 0, {:string, "foo", []}},
+           {:write, 0, 1, {:string, "h2", []}},
+           {:write, 0, 0, {:string, "h1", []}}
          ]}
       ]
 
-      assert {:ok, content} = XlsxWriter.generate(sheets)
+      shared_strings = generate_part!(sheets, "xl/sharedStrings.xml")
 
-      File.write!("test2.xlsx", content)
+      for text <- ["foo", "h1", "h2"] do
+        assert shared_strings =~ "<t>#{text}</t>"
+      end
     end
 
     test "write xlsx file with porcelain" do
-      filename = "test2.xlsx"
-
       sheet1 =
         XlsxWriter.new_sheet("sheet number one")
         |> XlsxWriter.write(0, 0, "col1", format: [:bold])
@@ -73,14 +93,15 @@ defmodule XlsxWriterTest do
         XlsxWriter.new_sheet("sheet number two")
         |> XlsxWriter.write(0, 0, "col1")
 
-      {:ok, content} = XlsxWriter.generate([sheet1, sheet2])
+      assert {:ok, content} = XlsxWriter.generate([sheet1, sheet2])
 
-      File.write!(filename, content)
+      sheet_xml = xlsx_part(content, "xl/worksheets/sheet1.xml")
+      assert sheet_xml =~ ~s(<c r="C2"><f>B2 + 2</f>)
+      assert sheet_xml =~ ~s(<c r="D5"><v>1</v></c>)
+      assert sheet_xml =~ ~s(<c r="D9"><v>20.12</v></c>)
     end
 
     test "write xlsx file with numeric format" do
-      filename = "test2.xlsx"
-
       sheet1 =
         XlsxWriter.new_sheet("sheet number one")
         |> XlsxWriter.write(0, 0, 999.99,
@@ -90,9 +111,10 @@ defmodule XlsxWriterTest do
         )
         |> XlsxWriter.write(1, 0, 888, format: [{:num_format, "0,000.00"}])
 
-      {:ok, content} = XlsxWriter.generate([sheet1])
-
-      File.write!(filename, content)
+      assert {:ok, content} = XlsxWriter.generate([sheet1])
+      styles = xlsx_part(content, "xl/styles.xml")
+      assert styles =~ ~s(formatCode="[$R] #,##0.00")
+      assert styles =~ ~s(formatCode="0,000.00")
     end
   end
 
@@ -104,8 +126,7 @@ defmodule XlsxWriterTest do
 
       assert {"Nil Test",
               [
-                {:write, 0, 0,
-                 {:string_with_format, "", [:bold, {:font_name, "Arial"}]}}
+                {:write, 0, 0, {:string, "", [:bold, {:font_name, "Arial"}]}}
               ]} = sheet
 
       assert {:ok, content} = XlsxWriter.generate([sheet])
@@ -252,8 +273,8 @@ defmodule XlsxWriterTest do
         |> XlsxWriter.write(0, 2, "Col C")
         |> XlsxWriter.write(0, 3, "Col D")
         |> XlsxWriter.write(0, 4, "Col E")
-        # Set columns A-E (0-4) to width 120 pixels
-        |> XlsxWriter.set_column_range_width(0, 4, 120)
+        # Set columns A-E (0-4) to 20 characters wide
+        |> XlsxWriter.set_column_range_width(0, 4, 20)
 
       assert {:ok, content} = XlsxWriter.generate([sheet])
       assert <<80, _>> <> _ = content
@@ -267,7 +288,7 @@ defmodule XlsxWriterTest do
         |> XlsxWriter.write(2, 0, "Row 2")
         |> XlsxWriter.write(3, 0, "Row 3")
         |> XlsxWriter.write(4, 0, "Row 4")
-        # Set rows 0-4 to height 30 pixels
+        # Set rows 0-4 to 30 points tall
         |> XlsxWriter.set_row_range_height(0, 4, 30)
 
       assert {:ok, content} = XlsxWriter.generate([sheet])
@@ -371,7 +392,7 @@ defmodule XlsxWriterTest do
         XlsxWriter.new_sheet("Test")
         |> XlsxWriter.write(0, 0, "Wrapped", format: [:text_wrap])
 
-      {"Test", [{:write, 0, 0, {:string_with_format, "Wrapped", [:text_wrap]}}]} =
+      {"Test", [{:write, 0, 0, {:string, "Wrapped", [:text_wrap]}}]} =
         sheet
     end
   end
@@ -410,8 +431,7 @@ defmodule XlsxWriterTest do
         XlsxWriter.new_sheet("Test")
         |> XlsxWriter.write(0, 0, "Top", format: [{:valign, :top}])
 
-      {"Test",
-       [{:write, 0, 0, {:string_with_format, "Top", [{:valign, :top}]}}]} =
+      {"Test", [{:write, 0, 0, {:string, "Top", [{:valign, :top}]}}]} =
         sheet
     end
   end
@@ -435,8 +455,7 @@ defmodule XlsxWriterTest do
         XlsxWriter.new_sheet("Test")
         |> XlsxWriter.write(0, 0, "Rotated", format: [{:rotation, 45}])
 
-      {"Test",
-       [{:write, 0, 0, {:string_with_format, "Rotated", [{:rotation, 45}]}}]} =
+      {"Test", [{:write, 0, 0, {:string, "Rotated", [{:rotation, 45}]}}]} =
         sheet
     end
   end
@@ -464,7 +483,7 @@ defmodule XlsxWriterTest do
         XlsxWriter.new_sheet("Test")
         |> XlsxWriter.write(0, 0, "Shrink", format: [:shrink])
 
-      {"Test", [{:write, 0, 0, {:string_with_format, "Shrink", [:shrink]}}]} =
+      {"Test", [{:write, 0, 0, {:string, "Shrink", [:shrink]}}]} =
         sheet
     end
   end
@@ -487,8 +506,7 @@ defmodule XlsxWriterTest do
         XlsxWriter.new_sheet("Test")
         |> XlsxWriter.write(0, 0, "Indented", format: [{:indent, 2}])
 
-      {"Test",
-       [{:write, 0, 0, {:string_with_format, "Indented", [{:indent, 2}]}}]} =
+      {"Test", [{:write, 0, 0, {:string, "Indented", [{:indent, 2}]}}]} =
         sheet
     end
   end
@@ -688,24 +706,28 @@ defmodule XlsxWriterTest do
   end
 
   describe "error handling" do
-    test "raises error for unsupported data type (PID)" do
+    test "raises error for unsupported data type (PID)", %{untyped: untyped} do
       assert_raise XlsxWriter.Error, ~r/not supported/, fn ->
         XlsxWriter.new_sheet("Test")
-        |> XlsxWriter.write(0, 0, self())
+        |> XlsxWriter.write(0, 0, untyped.pid)
       end
     end
 
-    test "raises error for unsupported data type (function)" do
+    test "raises error for unsupported data type (function)", %{
+      untyped: untyped
+    } do
       assert_raise XlsxWriter.Error, ~r/not supported/, fn ->
         XlsxWriter.new_sheet("Test")
-        |> XlsxWriter.write(0, 0, fn -> :ok end)
+        |> XlsxWriter.write(0, 0, untyped.function)
       end
     end
 
-    test "raises error for unsupported data type (reference)" do
+    test "raises error for unsupported data type (reference)", %{
+      untyped: untyped
+    } do
       assert_raise XlsxWriter.Error, ~r/not supported/, fn ->
         XlsxWriter.new_sheet("Test")
-        |> XlsxWriter.write(0, 0, make_ref())
+        |> XlsxWriter.write(0, 0, untyped.reference)
       end
     end
 
@@ -720,68 +742,49 @@ defmodule XlsxWriterTest do
       :gen_tcp.close(port)
     end
 
-    test "raises error for unsupported data type (map)" do
+    test "raises error for unsupported data type (map)", %{untyped: untyped} do
       assert_raise XlsxWriter.Error, ~r/not supported/, fn ->
         XlsxWriter.new_sheet("Test")
-        |> XlsxWriter.write(0, 0, %{foo: "bar"})
+        |> XlsxWriter.write(0, 0, untyped.map)
       end
     end
 
-    test "raises error for unsupported data type (list)" do
+    test "raises error for unsupported data type (list)", %{untyped: untyped} do
       assert_raise XlsxWriter.Error, ~r/not supported/, fn ->
         XlsxWriter.new_sheet("Test")
-        |> XlsxWriter.write(0, 0, [1, 2, 3])
+        |> XlsxWriter.write(0, 0, untyped.list)
       end
     end
 
-    test "raises error for unsupported data type (tuple)" do
+    test "raises error for unsupported data type (tuple)", %{untyped: untyped} do
       assert_raise XlsxWriter.Error, ~r/not supported/, fn ->
         XlsxWriter.new_sheet("Test")
-        |> XlsxWriter.write(0, 0, {:ok, "value"})
+        |> XlsxWriter.write(0, 0, untyped.tuple)
       end
     end
 
-    test "handles invalid hex color gracefully in background color" do
-      # Invalid hex should not crash, just be ignored
-      sheet =
-        XlsxWriter.new_sheet("Test")
-        |> XlsxWriter.write(0, 0, "Text", format: [{:bg_color, "invalid"}])
+    for {option, color} <- [
+          bg_color: "invalid",
+          font_color: "GGGGGG",
+          border_color: "notahex",
+          bg_color: "",
+          bg_color: "#FFF",
+          font_color: "red",
+          font_color: "#FFFFFFFF",
+          border_top_color: "#12345"
+        ] do
+      test "returns an error for invalid #{option} #{inspect(color)}" do
+        sheet =
+          XlsxWriter.new_sheet("Test")
+          |> XlsxWriter.write(0, 0, "Text",
+            format: [{unquote(option), unquote(color)}]
+          )
 
-      assert {:ok, content} = XlsxWriter.generate([sheet])
-      assert <<80, _>> <> _ = content
-    end
-
-    test "handles invalid hex color gracefully in font color" do
-      sheet =
-        XlsxWriter.new_sheet("Test")
-        |> XlsxWriter.write(0, 0, "Text", format: [{:font_color, "GGGGGG"}])
-
-      assert {:ok, content} = XlsxWriter.generate([sheet])
-      assert <<80, _>> <> _ = content
-    end
-
-    test "handles invalid hex color gracefully in border color" do
-      sheet =
-        XlsxWriter.new_sheet("Test")
-        |> XlsxWriter.write(0, 0, "Text",
-          format: [{:border, :thin}, {:border_color, "notahex"}]
-        )
-
-      assert {:ok, content} = XlsxWriter.generate([sheet])
-      assert <<80, _>> <> _ = content
-    end
-
-    test "handles empty string hex color" do
-      sheet =
-        XlsxWriter.new_sheet("Test")
-        |> XlsxWriter.write(0, 0, "Text", format: [{:bg_color, ""}])
-
-      assert {:ok, content} = XlsxWriter.generate([sheet])
-      assert <<80, _>> <> _ = content
+        assert {:error, "invalid color " <> _} = XlsxWriter.generate([sheet])
+      end
     end
 
     test "handles boolean as hex color gracefully in background color" do
-      # Boolean values should raise XlsxWriter.Error with helpful message
       assert_raise XlsxWriter.Error,
                    ~r/bg_color.*expects a string hex color.*got: true/,
                    fn ->
@@ -793,7 +796,6 @@ defmodule XlsxWriterTest do
     end
 
     test "handles boolean as hex color gracefully in font color" do
-      # Boolean values should raise XlsxWriter.Error with helpful message
       assert_raise XlsxWriter.Error,
                    ~r/font_color.*expects a string hex color.*got: false/,
                    fn ->
@@ -805,7 +807,6 @@ defmodule XlsxWriterTest do
     end
 
     test "handles integer as hex color gracefully in border color" do
-      # Integer values should raise XlsxWriter.Error with helpful message
       assert_raise XlsxWriter.Error,
                    ~r/border_color.*expects a string hex color.*got: 123/,
                    fn ->
@@ -816,13 +817,13 @@ defmodule XlsxWriterTest do
                    end
     end
 
-    test "handles invalid date string gracefully" do
-      # This will be caught by Rust and return an error
+    test "returns an error for a date outside Excel's range" do
       sheet =
         XlsxWriter.new_sheet("Test")
-        |> XlsxWriter.write(0, 0, "foo")
+        |> XlsxWriter.write(0, 0, ~D[1800-01-01])
 
-      assert {:ok, _content} = XlsxWriter.generate([sheet])
+      assert {:error, reason} = XlsxWriter.generate([sheet])
+      assert reason =~ "outside Excel range"
     end
 
     test "raises error for negative row index" do
@@ -980,22 +981,22 @@ defmodule XlsxWriterTest do
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
 
-    test "handles zero font size" do
+    test "returns an error for a zero font size" do
       sheet =
         XlsxWriter.new_sheet("Test")
         |> XlsxWriter.write(0, 0, "Text", format: [{:font_size, 0}])
 
-      assert {:ok, content} = XlsxWriter.generate([sheet])
-      assert <<80, _>> <> _ = content
+      assert {:error, "font size 0 must be greater than 0"} =
+               XlsxWriter.generate([sheet])
     end
 
-    test "handles extremely large font size" do
+    test "returns an error for a font size above Excel's maximum of 409" do
       sheet =
         XlsxWriter.new_sheet("Test")
         |> XlsxWriter.write(0, 0, "Text", format: [{:font_size, 1000}])
 
-      assert {:ok, content} = XlsxWriter.generate([sheet])
-      assert <<80, _>> <> _ = content
+      assert {:error, "font size 1000 is outside Excel's range 0..409"} =
+               XlsxWriter.generate([sheet])
     end
 
     test "handles empty font name" do
@@ -1171,7 +1172,10 @@ defmodule XlsxWriterTest do
         ])
 
       {"Test",
-       [{:write, 0, 0, {:rich_string, [{"Bold ", [:bold]}, {"Normal", []}]}}]} =
+       [
+         {:write, 0, 0,
+          {:rich_string, [{"Bold ", [:bold]}, {"Normal", []}], []}}
+       ]} =
         sheet
     end
 
@@ -1188,8 +1192,8 @@ defmodule XlsxWriterTest do
       {"Test",
        [
          {:write, 0, 0,
-          {:rich_string_with_format,
-           [{"Bold ", [:bold]}, {"Italic", [:italic]}], [{:align, :center}]}}
+          {:rich_string, [{"Bold ", [:bold]}, {"Italic", [:italic]}],
+           [{:align, :center}]}}
        ]} = sheet
     end
   end
@@ -1326,7 +1330,7 @@ defmodule XlsxWriterTest do
         XlsxWriter.new_sheet("X")
         |> XlsxWriter.write(0, 0, true, format: [:bold])
 
-      assert {"X", [{:write, 0, 0, {:boolean_with_format, true, [:bold]}}]} =
+      assert {"X", [{:write, 0, 0, {:boolean, true, [:bold]}}]} =
                sheet
 
       assert {:ok, _} = XlsxWriter.generate([sheet])
@@ -1337,7 +1341,7 @@ defmodule XlsxWriterTest do
         XlsxWriter.new_sheet("X")
         |> XlsxWriter.write(0, 0, false, format: [:italic])
 
-      assert {"X", [{:write, 0, 0, {:boolean_with_format, false, [:italic]}}]} =
+      assert {"X", [{:write, 0, 0, {:boolean, false, [:italic]}}]} =
                sheet
 
       assert {:ok, _} = XlsxWriter.generate([sheet])
@@ -1378,8 +1382,7 @@ defmodule XlsxWriterTest do
 
       assert {"X",
               [
-                {:write, 0, 0,
-                 {:number_with_format, 12.34, [{:num_format, "0.00"}]}}
+                {:write, 0, 0, {:number, 12.34, [{:num_format, "0.00"}]}}
               ]} = sheet
 
       assert {:ok, _} = XlsxWriter.generate([sheet])
@@ -1390,17 +1393,19 @@ defmodule XlsxWriterTest do
         XlsxWriter.new_sheet("X")
         |> XlsxWriter.write(0, 0, :hello, format: [:bold])
 
-      assert {"X", [{:write, 0, 0, {:string_with_format, "hello", [:bold]}}]} =
+      assert {"X", [{:write, 0, 0, {:string, "hello", [:bold]}}]} =
                sheet
 
       assert {:ok, _} = XlsxWriter.generate([sheet])
     end
 
-    test "unsupported type with format raises XlsxWriter.Error" do
+    test "unsupported type with format raises XlsxWriter.Error", %{
+      untyped: untyped
+    } do
       sheet = XlsxWriter.new_sheet("X")
 
-      assert_raise XlsxWriter.Error, fn ->
-        XlsxWriter.write(sheet, 0, 0, self(), format: [:bold])
+      assert_raise XlsxWriter.Error, ~r/not supported/, fn ->
+        XlsxWriter.write(sheet, 0, 0, untyped.pid, format: [:bold])
       end
     end
   end
@@ -1462,11 +1467,13 @@ defmodule XlsxWriterTest do
       assert {:ok, _} = XlsxWriter.generate([sheet])
     end
 
-    test "unsupported type with format raises XlsxWriter.Error" do
+    test "unsupported type with format raises XlsxWriter.Error", %{
+      untyped: untyped
+    } do
       sheet = XlsxWriter.new_sheet("X")
 
-      assert_raise XlsxWriter.Error, fn ->
-        XlsxWriter.merge_range(sheet, 0, 0, 0, 3, self(), format: [:bold])
+      assert_raise XlsxWriter.Error, ~r/not supported/, fn ->
+        XlsxWriter.merge_range(sheet, 0, 0, 0, 3, untyped.pid, format: [:bold])
       end
     end
   end
@@ -1477,7 +1484,7 @@ defmodule XlsxWriterTest do
         XlsxWriter.new_sheet("X")
         |> XlsxWriter.write(0, 0, true)
 
-      assert {"X", [{:write, 0, 0, {:boolean, true}}]} = sheet
+      assert {"X", [{:write, 0, 0, {:boolean, true, []}}]} = sheet
     end
 
     test "boolean false (no format) produces a boolean cell, not a string" do
@@ -1485,7 +1492,384 @@ defmodule XlsxWriterTest do
         XlsxWriter.new_sheet("X")
         |> XlsxWriter.write(0, 0, false)
 
-      assert {"X", [{:write, 0, 0, {:boolean, false}}]} = sheet
+      assert {"X", [{:write, 0, 0, {:boolean, false, []}}]} = sheet
+    end
+  end
+
+  describe "merge_range/7 cell contents" do
+    @merge_values [
+      {"Title", ~r{<c r="A1"( s="1")? t="s"><v>0</v></c>}},
+      {100, ~r{<c r="A2"( s="1")?><v>100</v></c>}},
+      {2.5, ~r{<c r="A3"( s="1")?><v>2.5</v></c>}},
+      {true, ~r{<c r="A4"( s="1")? t="b"><v>1</v></c>}},
+      {Decimal.new("9.5"), ~r{<c r="A5"( s="1")?><v>9.5</v></c>}},
+      {~D[2024-01-15], ~r{<c r="A6" s="\d+"><v>45306</v></c>}},
+      {~U[2024-01-15 10:00:00Z],
+       ~r{<c r="A7" s="\d+"><v>45306.416666666664</v></c>}},
+      {~N[2024-01-15 10:30:00], ~r{<c r="A8" s="\d+"><v>45306.4375</v></c>}},
+      {:atom, ~r{<c r="A9"( s="1")? t="s"><v>1</v></c>}}
+    ]
+
+    for format <- [[], [:bold]] do
+      test "keeps the typed value and merges every value type with format #{inspect(format)}" do
+        sheet =
+          @merge_values
+          |> Enum.with_index()
+          |> Enum.reduce(XlsxWriter.new_sheet("Merged"), fn {{value, _}, row},
+                                                            sheet ->
+            XlsxWriter.merge_range(sheet, row, 0, row, 2, value,
+              format: unquote(format)
+            )
+          end)
+
+        {:ok, content} = XlsxWriter.generate([sheet])
+        sheet_xml = xlsx_part(content, "xl/worksheets/sheet1.xml")
+
+        for {{_value, cell_pattern}, row} <- Enum.with_index(@merge_values, 1) do
+          assert sheet_xml =~ cell_pattern
+          assert sheet_xml =~ ~s(<mergeCell ref="A#{row}:C#{row}"/>)
+        end
+
+        assert xlsx_part(content, "xl/sharedStrings.xml") =~
+                 ~s(<si><t>Title</t></si><si><t>atom</t></si></sst>)
+      end
+    end
+
+    test "applies the format to every cell of the range" do
+      sheet =
+        XlsxWriter.new_sheet("Merged")
+        |> XlsxWriter.merge_range(0, 0, 1, 1, 42, format: [:bold])
+
+      sheet_xml = generate_part!([sheet])
+
+      for cell <- ["B1", "A2", "B2"] do
+        assert sheet_xml =~ ~s(<c r="#{cell}" s="1"/>)
+      end
+
+      assert sheet_xml =~ ~s(<c r="A1" s="1"><v>42</v></c>)
+    end
+
+    test "dates use the same default number formats as write/5" do
+      sheet =
+        XlsxWriter.new_sheet("Merged")
+        |> XlsxWriter.merge_range(0, 0, 0, 1, ~D[2024-01-15])
+        |> XlsxWriter.merge_range(1, 0, 1, 1, ~N[2024-01-15 10:30:00])
+
+      {:ok, content} = XlsxWriter.generate([sheet])
+      styles = xlsx_part(content, "xl/styles.xml")
+      assert styles =~ ~s(formatCode="yyyy-mm-dd")
+      assert styles =~ ~s(formatCode="yyyy-mm-ddThh:mm:ss")
+    end
+
+    test "a user num_format overrides the default date format" do
+      sheet =
+        XlsxWriter.new_sheet("Merged")
+        |> XlsxWriter.merge_range(0, 0, 0, 1, ~D[2024-01-15],
+          format: [{:num_format, "dd/mm/yyyy"}]
+        )
+
+      {:ok, content} = XlsxWriter.generate([sheet])
+      styles = xlsx_part(content, "xl/styles.xml")
+      assert styles =~ ~s(formatCode="dd/mm/yyyy")
+      refute styles =~ ~s(formatCode="yyyy-mm-dd")
+    end
+
+    test "returns an error when a raw instruction merges an image" do
+      sheets = [{"S", [{:merge_range, 0, 0, 0, 1, {:image, "image"}}]}]
+
+      assert XlsxWriter.generate(sheets) ==
+               {:error, "images cannot be written to a merged range"}
+    end
+  end
+
+  describe "fractional sizes" do
+    test "column widths and row heights accept floats" do
+      sheet =
+        XlsxWriter.new_sheet("S")
+        |> XlsxWriter.write(0, 0, "x")
+        |> XlsxWriter.set_column_width(0, 25.5)
+        |> XlsxWriter.set_column_range_width(1, 2, 12.5)
+        |> XlsxWriter.set_row_height(0, 30.0)
+        |> XlsxWriter.set_row_range_height(1, 2, 12.5)
+        |> XlsxWriter.write(1, 0, "y")
+
+      sheet_xml = generate_part!([sheet])
+
+      assert sheet_xml =~
+               ~s(<col min="1" max="1" width="26.28515625" customWidth="1"/>)
+
+      assert sheet_xml =~
+               ~s(<col min="2" max="3" width="13.28515625" customWidth="1"/>)
+
+      assert sheet_xml =~ ~s(<row r="1" spans="1:1" ht="30" customHeight="1">)
+
+      assert sheet_xml =~
+               ~s(<row r="2" spans="1:1" ht="12.75" customHeight="1">)
+    end
+
+    test "font sizes accept floats" do
+      sheet =
+        XlsxWriter.new_sheet("S")
+        |> XlsxWriter.write(0, 0, "x", format: [{:font_size, 11.5}])
+
+      assert generate_part!([sheet], "xl/styles.xml") =~ ~s(<sz val="11.5"/>)
+    end
+
+    test "comment sizes accept floats" do
+      sheet =
+        XlsxWriter.new_sheet("S")
+        |> XlsxWriter.write_comment(0, 0, "note",
+          width: 100.5,
+          height: 50.4,
+          visible: true
+        )
+
+      vml = generate_part!([sheet], "xl/drawings/vmlDrawing1.vml")
+      # 100.5 and 50.4 pixels round to 101 and 50 pixels.
+      assert vml =~ "width:75.75pt;height:37.5pt"
+    end
+  end
+
+  describe "colors" do
+    test "accepts #RRGGBB and RRGGBB in any case" do
+      sheet =
+        XlsxWriter.new_sheet("S")
+        |> XlsxWriter.write(0, 0, "a",
+          format: [
+            {:bg_color, "#4472c4"},
+            {:font_color, "FF0000"},
+            {:border, :thin},
+            {:border_color, "#00ff00"}
+          ]
+        )
+        |> XlsxWriter.set_tab_color("#ABCDEF")
+
+      {:ok, content} = XlsxWriter.generate([sheet])
+      styles = xlsx_part(content, "xl/styles.xml")
+      assert styles =~ ~s(<fgColor rgb="FF4472C4"/>)
+      assert styles =~ ~s(<color rgb="FFFF0000"/>)
+      assert styles =~ ~s(<left style="thin"><color rgb="FF00FF00"/></left>)
+
+      assert xlsx_part(content, "xl/worksheets/sheet1.xml") =~
+               ~s(<sheetPr><tabColor rgb="FFABCDEF"/></sheetPr>)
+    end
+
+    test "the NIF returns an error for invalid colors in raw instructions" do
+      for instruction <- [
+            {:write, 0, 0, {:string, "x", [{:bg_color, "#FFF"}]}},
+            {:write, 0, 0, {:string, "x", [{:font_color, "red"}]}},
+            {:write, 0, 0, {:string, "x", [{:font_color, "#FFFFFFFF"}]}},
+            {:set_tab_color, "blue"}
+          ] do
+        assert {:error, "invalid color " <> _} =
+                 XlsxWriter.generate([{"S", [instruction]}])
+      end
+    end
+  end
+
+  describe "autofit/1 ordering" do
+    @long_text "A very long string that should widen the column"
+
+    test "fits columns written after autofit/1 was called" do
+      sheet =
+        XlsxWriter.new_sheet("S")
+        |> XlsxWriter.autofit()
+        |> XlsxWriter.write(0, 0, @long_text)
+
+      assert generate_part!([sheet]) =~
+               ~s(<cols><col min="1" max="1" width="43.140625" bestFit="1" customWidth="1"/></cols>)
+    end
+
+    test "gives the same result wherever autofit/1 appears" do
+      first =
+        XlsxWriter.new_sheet("S")
+        |> XlsxWriter.autofit()
+        |> XlsxWriter.write(0, 0, @long_text)
+        |> XlsxWriter.write(0, 1, "short")
+
+      last =
+        XlsxWriter.new_sheet("S")
+        |> XlsxWriter.write(0, 0, @long_text)
+        |> XlsxWriter.write(0, 1, "short")
+        |> XlsxWriter.autofit()
+
+      assert generate_part!([first]) == generate_part!([last])
+    end
+
+    test "explicit column widths take precedence, before or after autofit/1" do
+      sheet =
+        XlsxWriter.new_sheet("S")
+        |> XlsxWriter.set_column_width(0, 5)
+        |> XlsxWriter.write(0, 0, @long_text)
+        |> XlsxWriter.write(0, 1, @long_text)
+        |> XlsxWriter.write(0, 2, @long_text)
+        |> XlsxWriter.write(0, 3, @long_text)
+        |> XlsxWriter.autofit()
+        |> XlsxWriter.set_column_range_width(1, 2, 8)
+
+      assert generate_part!([sheet]) =~
+               ~s(<cols><col min="1" max="1" width="5.7109375" customWidth="1"/>) <>
+                 ~s(<col min="2" max="3" width="8.7109375" customWidth="1"/>) <>
+                 ~s(<col min="4" max="4" width="43.140625" bestFit="1" customWidth="1"/></cols>)
+    end
+
+    test "Builder column widths take precedence over autofit" do
+      {:ok, content} =
+        XlsxWriter.Builder.create()
+        |> XlsxWriter.Builder.add_sheet("S")
+        |> XlsxWriter.Builder.add_rows([[{@long_text, width: 5}, @long_text]])
+        |> XlsxWriter.Builder.write_binary()
+
+      assert xlsx_part(content, "xl/worksheets/sheet1.xml") =~
+               ~s(<col min="1" max="1" width="5.7109375" customWidth="1"/>)
+    end
+  end
+
+  describe "DateTime values" do
+    test "are written as wall-clock time; the UTC offset is dropped" do
+      athens = %DateTime{
+        year: 2024,
+        month: 1,
+        day: 15,
+        hour: 10,
+        minute: 0,
+        second: 0,
+        microsecond: {0, 0},
+        utc_offset: 7200,
+        std_offset: 0,
+        zone_abbr: "EET",
+        time_zone: "Europe/Athens"
+      }
+
+      sheet =
+        XlsxWriter.new_sheet("S")
+        |> XlsxWriter.write(0, 0, athens)
+        |> XlsxWriter.write(1, 0, ~U[2024-01-15 10:00:00Z])
+        |> XlsxWriter.write(2, 0, ~N[2024-01-15 10:00:00])
+
+      assert {"S",
+              [_, _, {:write, 0, 0, {:date_time, "2024-01-15T10:00:00", []}}]} =
+               sheet
+
+      sheet_xml = generate_part!([sheet])
+
+      for row <- 1..3 do
+        assert sheet_xml =~
+                 ~r{<c r="A#{row}" s="1"><v>45306.416666666664</v></c>}
+      end
+    end
+
+    test "keep sub-second precision" do
+      sheet =
+        XlsxWriter.new_sheet("S")
+        |> XlsxWriter.write(0, 0, ~U[2024-01-15 10:00:00.500000Z])
+
+      assert generate_part!([sheet]) =~ "<v>45306.416672453706</v>"
+    end
+  end
+
+  describe "generate/2 error handling" do
+    test "returns an error for an instruction the NIF cannot decode" do
+      {name, instructions} =
+        XlsxWriter.new_sheet("S") |> XlsxWriter.write(0, 0, "ok")
+
+      # Instructions are stored newest first and numbered in write order.
+      sheet = {name, [{:write, 0, 0, :bad} | instructions]}
+
+      assert XlsxWriter.generate([sheet]) ==
+               {:error,
+                ~s(invalid instruction #2 in sheet "S": {write,0,0,bad})}
+    end
+
+    test "returns an error for raw instructions with unknown formats or wrong types" do
+      for instruction <- [
+            {:write, 0, 0, {:string, "x", [:bolt]}},
+            {:set_column_width, 0, "wide"},
+            {:write, 1.5, 0, {:string, "x", []}},
+            {:insert_note, 0, 0, 123, %XlsxWriter.NoteOptions{}}
+          ] do
+        assert {:error, "invalid instruction #1 in sheet \"S\": " <> _} =
+                 XlsxWriter.generate([{"S", [instruction]}])
+      end
+    end
+
+    test "returns an error for a malformed sheet" do
+      assert XlsxWriter.generate([:nope]) == {:error, "invalid sheet #1: nope"}
+
+      assert {:error, "invalid sheet #2: " <> _} =
+               XlsxWriter.generate([XlsxWriter.new_sheet("A"), {"B", :nope}])
+    end
+
+    test "returns an error for invalid workbook properties" do
+      sheet = XlsxWriter.new_sheet("S")
+
+      assert {:error, "invalid workbook properties: " <> _} =
+               XlsxWriter.generate([sheet], properties: %{author: "x"})
+
+      assert {:error, "invalid workbook properties: " <> _} =
+               XlsxWriter.generate([sheet],
+                 properties: %XlsxWriter.WorkbookProperties{author: 123}
+               )
+    end
+
+    test "writes integers beyond 64 bits as numbers" do
+      sheet =
+        XlsxWriter.new_sheet("S") |> XlsxWriter.write(0, 0, Integer.pow(2, 70))
+
+      assert generate_part!([sheet]) =~
+               ~s(<c r="A1"><v>1180591620717411300000</v></c>)
+    end
+
+    test "the NIF rejects out-of-range positions in raw instructions instead of wrapping them" do
+      for {instruction, message} <- [
+            {{:write, 0, 70_000, {:string, "x", []}},
+             "column 70000 is outside Excel's range 0..16383"},
+            {{:write, -1, 0, {:string, "x", []}},
+             "row -1 is outside Excel's range 0..1048575"},
+            {{:set_column_range_width, 0, 65_537, 10},
+             "column 65537 is outside Excel's range 0..16383"},
+            {{:set_row_height, 4_294_967_296, 10},
+             "row 4294967296 is outside Excel's range 0..1048575"},
+            {{:write, 0, 0, {:string, "x", [{:indent, 257}]}},
+             "indent 257 is outside the range 0..250"},
+            {{:write, 0, 0, {:string, "x", [{:rotation, 65_581}]}},
+             "rotation 65581 must be between -90 and 90, or 270"},
+            {{:write, 0, 0, {:string, "x", [{:font_size, 65_547}]}},
+             "font size 65547 is outside Excel's range 0..409"},
+            {{:set_row_height, 0, 65_556},
+             "row height 65556 is outside Excel's range 0..409"}
+          ] do
+        assert XlsxWriter.generate([{"S", [instruction]}]) == {:error, message}
+      end
+    end
+
+    test "the NIF returns the workbook as a binary" do
+      assert {:ok, content} = XlsxWriter.RustXlsxWriter.write([{"S", []}], nil)
+      assert is_binary(content)
+      assert <<"PK", _rest::binary>> = content
+    end
+  end
+
+  describe "comments" do
+    test "write the author" do
+      author = String.duplicate("a", 52)
+
+      sheet =
+        XlsxWriter.new_sheet("S")
+        |> XlsxWriter.write_comment(0, 0, "x", author: author)
+
+      comments = generate_part!([sheet], "xl/comments1.xml")
+      assert comments =~ "<author>#{author}</author></authors>"
+      assert comments =~ ~s(<comment ref="A1" authorId="1">)
+    end
+
+    test "the NIF returns an error for a long author in a raw instruction" do
+      options = %XlsxWriter.NoteOptions{author: String.duplicate("a", 53)}
+
+      assert {:error, "comment author must be at most 52 characters" <> _} =
+               XlsxWriter.generate([
+                 {"S", [{:insert_note, 0, 0, "x", options}]}
+               ])
     end
   end
 end
