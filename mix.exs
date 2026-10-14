@@ -28,7 +28,7 @@ defmodule XlsxWriter.MixProject do
     [
       {:decimal, "~> 2.0 or ~> 3.0"},
       {:rustler_precompiled, "~> 0.8"},
-      {:rustler, "~> 0.38.0", runtime: false},
+      {:rustler, "~> 0.38.0", optional: true, runtime: false},
 
       # Dev tools
       {:credo, "~> 1.4", only: [:dev], runtime: false},
