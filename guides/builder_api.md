@@ -41,7 +41,7 @@ Builder.create()
 ### 1. Builder State
 
 The Builder maintains state including:
-- List of sheets with their instructions
+- The completed sheets and the active one
 - Current active sheet
 - Cursor position (row, col)
 - Column width mappings
@@ -101,7 +101,7 @@ builder
 
 **Parameters:**
 - `builder` - The builder state
-- `sheet_name` - Name of the sheet (string)
+- `sheet_name` - Name of the sheet (string). Raises `ArgumentError` if a sheet with the same name (ignoring case) already exists.
 
 **Returns:** Updated builder with new active sheet
 
@@ -445,19 +445,25 @@ case Builder.write_binary(builder) do
     {:error, reason}
 end
 
-# write_file/2 also returns result
+# write_file/2 also returns a result, including file system errors
 case Builder.write_file(builder, path) do
   :ok ->
     IO.puts("✓ File created: #{path}")
 
   {:error, reason} ->
-    IO.puts("✗ Error: #{reason}")
+    IO.puts("✗ Error: #{inspect(reason)}")
 end
 ```
 
 Common errors:
-- `"No sheets added"` - Call `add_sheet/2` before adding rows
+- `{:error, "No sheets added..."}` from `write_binary/1` / `write_file/2` - Call `add_sheet/2` before generating
+- `{:error, :enoent}` (or another `File.write/2` reason) from `write_file/2` - The file could not be written
+
+Mistakes in the data raise `ArgumentError` when the rows are added:
 - `"No active sheet"` - Add at least one sheet with `add_sheet/2`
+- `"A sheet named ... already exists"` - Sheet names must be unique, ignoring case
+- `"Unknown cell option ..."` - Cell options are `format:` and `width:` only
+- Invalid positions, values or formats, as for `XlsxWriter.write/5`
 
 ## Demo Scripts
 

@@ -34,6 +34,14 @@ sheet = sheet
 File.write!("data_types.xlsx", xlsx_content)
 ```
 
+Dates get the number format `yyyy-mm-dd` and date-times `yyyy-mm-ddThh:mm:ss`
+unless you pass your own `{:num_format, ...}`.
+
+Excel has no time zones, so a `DateTime` is written as its wall-clock time and
+its UTC offset is dropped: `~U[2024-01-15 10:00:00Z]` and 10:00 in
+`Europe/Athens` both appear as `2024-01-15 10:00:00`. Shift the value to the
+zone you want to show (for example with `DateTime.shift_zone!/2`) before writing it.
+
 ## Basic Formatting
 
 Apply formatting to cells using the `:format` option:

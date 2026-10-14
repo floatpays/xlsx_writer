@@ -14,7 +14,6 @@ jobs:
   tests:
     env:
       MIX_ENV: test
-      MJML_BUILD: true
     runs-on: ubuntu-latest
     name: "[${{matrix.otp}}/${{matrix.elixir}}] Tests for xlsx_writer [OTP/Elixir]"
     strategy:
@@ -44,6 +43,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native/xlsx_writer
       - uses: erlef/setup-beam@v1
         with:
           otp-version: ${{matrix.otp}}
@@ -55,11 +57,52 @@ jobs:
           path: |
             deps
             _build
-            !_build/*/lib/mjml
+            !_build/*/lib/xlsx_writer
           key: ${{ runner.os }}[${{ matrix.otp }}/${{ matrix.elixir }}]-mix-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
       - run: mix deps.get
       - run: mix deps.compile
       - run: mix compile --warnings-as-errors
         env:
           RUST_BACKTRACE: 1
-      - run: mix test
+      - run: mix test --warnings-as-errors
+
+  lint:
+    env:
+      # Quokka (the formatter plugin) and Credo are dev-only dependencies.
+      MIX_ENV: dev
+    runs-on: ubuntu-latest
+    name: Lint and Rust unit tests
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native/xlsx_writer
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "28.5"
+          elixir-version: "1.19.5"
+      - name: Cache hex deps
+        uses: actions/cache@v6
+        with:
+          path: |
+            deps
+            _build
+            !_build/*/lib/xlsx_writer
+          key: ${{ runner.os }}-lint-mix-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
+      - run: mix deps.get
+      - run: mix deps.compile
+      - run: mix format --check-formatted
+      - run: mix credo --strict
+      - name: Check Rust formatting
+        working-directory: native/xlsx_writer
+        run: cargo fmt --check
+      - name: Clippy
+        working-directory: native/xlsx_writer
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Rust unit tests
+        working-directory: native/xlsx_writer
+        run: cargo test

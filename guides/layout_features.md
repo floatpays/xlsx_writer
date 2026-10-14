@@ -61,6 +61,9 @@ sheet = XlsxWriter.new_sheet("Report")
 File.write!("merged_cells.xlsx", content)
 ```
 
+The merged value keeps its type: numbers, booleans and dates are stored as
+such (not as text), and the format applies to every cell in the range.
+
 ## Autofilter
 
 Add dropdown filter buttons to column headers:
@@ -101,7 +104,6 @@ sheet = XlsxWriter.new_sheet("Hidden Data")
   |> XlsxWriter.hide_row(1)
 
   # Visible columns
-  |> XlsxWriter.write(0, 0, "Col A")
   |> XlsxWriter.write(0, 1, "Col B")
   |> XlsxWriter.write(0, 2, "Hidden Col")
 
@@ -123,14 +125,14 @@ Customize the size of columns and rows:
 
 ```elixir
 sheet = XlsxWriter.new_sheet("Sized")
-  # Set column widths (in characters)
+  # Set column widths (in character units; integers or floats)
   |> XlsxWriter.set_column_width(0, 30)  # Wide column for long text
   |> XlsxWriter.set_column_width(1, 15)  # Medium column
   |> XlsxWriter.set_column_width(2, 10)  # Narrow column
 
-  # Set row heights (in points)
+  # Set row heights (in points; integers or floats)
   |> XlsxWriter.set_row_height(0, 40)    # Tall header row
-  |> XlsxWriter.set_row_height(1, 25)    # Medium row
+  |> XlsxWriter.set_row_height(1, 22.5)  # Medium row
 
   # Add data
   |> XlsxWriter.write(0, 0, "Long Description Text", format: [:bold])
@@ -147,14 +149,14 @@ Set width or height for multiple columns or rows at once:
 
 ```elixir
 sheet = XlsxWriter.new_sheet("Range Sizing")
-  # Set columns A-E (0-4) to 120 pixels wide
-  |> XlsxWriter.set_column_range_width(0, 4, 120)
+  # Set columns A-E (0-4) to 20 characters wide
+  |> XlsxWriter.set_column_range_width(0, 4, 20)
 
-  # Set rows 1-10 to 25 pixels tall
+  # Set rows 1-10 to 25 points tall
   |> XlsxWriter.set_row_range_height(0, 9, 25)
 
   # You can combine with individual sizing
-  |> XlsxWriter.set_column_width(5, 200)  # Make column F extra wide
+  |> XlsxWriter.set_column_width(5, 40)  # Make column F extra wide
 
   # Add headers to all columns
   |> XlsxWriter.write(0, 0, "Col A", format: [:bold])
@@ -167,6 +169,11 @@ sheet = XlsxWriter.new_sheet("Range Sizing")
 {:ok, content} = XlsxWriter.generate([sheet])
 File.write!("range_sizing.xlsx", content)
 ```
+
+Column widths are in Excel character units and row heights are in points,
+matching what Excel shows in its Column Width and Row Height dialogs. Both take
+non-negative integers or floats; negative values raise `ArgumentError`. Column
+widths above 255 are capped at 255, Excel's maximum.
 
 **Benefits of range operations:**
 - More efficient than setting each column/row individually
@@ -209,7 +216,9 @@ sheet = XlsxWriter.new_sheet("Auto Sized")
 File.write!("autofit.xlsx", content)
 ```
 
-**Note:** Explicit column widths set via `set_column_width/3` take precedence over autofit.
+**Note:** Autofit runs after all data has been written, wherever `autofit/1`
+appears in the pipeline. Explicit column widths set via `set_column_width/3` or
+`set_column_range_width/4` take precedence over autofit.
 
 ## Worksheet Tab Colors
 
@@ -264,8 +273,7 @@ sheet = XlsxWriter.new_sheet("Sales Report")
   |> XlsxWriter.write(2, 0, "Widget A", format: [{:border, :thin}])
   |> XlsxWriter.write(2, 1, 150, format: [{:border, :thin}])
   |> XlsxWriter.write(2, 2, 9.99, format: [{:border, :thin}, {:num_format, "$#,##0.00"}])
-  |> XlsxWriter.write_formula(2, 3, "=B3*C3")
-  |> XlsxWriter.write(2, 3, nil, format: [{:border, :thin}, {:num_format, "$#,##0.00"}])
+  |> XlsxWriter.write_formula(2, 3, "=B3*C3", format: [{:border, :thin}, {:num_format, "$#,##0.00"}])
   |> XlsxWriter.write(2, 4, "Active", format: [{:border, :thin}])
 
   # Hidden row for internal calculations
