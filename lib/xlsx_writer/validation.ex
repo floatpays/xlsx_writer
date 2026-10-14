@@ -6,7 +6,8 @@ defmodule XlsxWriter.Validation do
   added, so that mistakes fail early, with a clear message, instead of
   surfacing later from `XlsxWriter.generate/2` or being silently dropped.
 
-  Every validation failure raises `ArgumentError`.
+  Every validation failure raises `ArgumentError`, except for the deprecated
+  `validate_supported_type!/1`, which raises `XlsxWriter.Error` as before.
   """
 
   @max_row 1_048_575
@@ -91,86 +92,30 @@ defmodule XlsxWriter.Validation do
     validate_column!(col)
   end
 
-  @doc """
-  Validates a row index: an integer in `0..#{@max_row}`.
+  # The validators below are internal: XlsxWriter and XlsxWriter.Builder call
+  # them when an instruction is added.
 
-  ## Examples
-
-      iex> XlsxWriter.Validation.validate_row!(1_048_575)
-      :ok
-
-      iex> XlsxWriter.Validation.validate_row!(1_048_576)
-      ** (ArgumentError) Row index must be at most 1048575 (Excel's last row), got: 1048576
-
-  A non-integer such as `1.5` raises `ArgumentError` with
-  `"Row index must be an integer, got: 1.5"`.
-
-  """
+  @doc false
   def validate_row!(row), do: validate_index!(row, "Row", @max_row, "row")
 
-  @doc """
-  Validates a column index: an integer in `0..#{@max_column}`.
-
-  ## Examples
-
-      iex> XlsxWriter.Validation.validate_column!(16_383)
-      :ok
-
-      iex> XlsxWriter.Validation.validate_column!(-2)
-      ** (ArgumentError) Column index must be non-negative, got: -2
-
-  """
+  @doc false
   def validate_column!(col),
     do: validate_index!(col, "Column", @max_column, "column")
 
-  @doc """
-  Validates a cell range: all four indices must be valid and the first
-  row/column must not come after the last.
-
-  ## Examples
-
-      iex> XlsxWriter.Validation.validate_range!(0, 0, 2, 3)
-      :ok
-
-      iex> XlsxWriter.Validation.validate_range!(5, 0, 1, 3)
-      ** (ArgumentError) First row (5) must not be after last row (1)
-
-  """
+  @doc false
   def validate_range!(first_row, first_col, last_row, last_col) do
     validate_row_range!(first_row, last_row)
     validate_column_range!(first_col, last_col)
   end
 
-  @doc """
-  Validates a range of rows: both must be valid row indices, in order.
-
-  ## Examples
-
-      iex> XlsxWriter.Validation.validate_row_range!(0, 9)
-      :ok
-
-      iex> XlsxWriter.Validation.validate_row_range!(9, 0)
-      ** (ArgumentError) First row (9) must not be after last row (0)
-
-  """
+  @doc false
   def validate_row_range!(first_row, last_row) do
     validate_row!(first_row)
     validate_row!(last_row)
     validate_order!(first_row, last_row, "row")
   end
 
-  @doc """
-  Validates a range of columns: both must be valid column indices, in order.
-
-  ## Examples
-
-      iex> XlsxWriter.Validation.validate_column_range!(0, 4)
-      :ok
-
-      iex> XlsxWriter.Validation.validate_column_range!(4, 0)
-      ** (ArgumentError) First column (4) must not be after last column (0)
-
-  """
+  @doc false
   def validate_column_range!(first_col, last_col) do
     validate_column!(first_col)
     validate_column!(last_col)
@@ -203,18 +148,7 @@ defmodule XlsxWriter.Validation do
           "Image data must be a binary, got: #{inspect(image_binary)}"
   end
 
-  @doc """
-  Validates a hex colour string: `"#RRGGBB"` (or `"RRGGBB"`), case-insensitive.
-
-  ## Examples
-
-      iex> XlsxWriter.Validation.validate_color!("#4472c4")
-      :ok
-
-      iex> XlsxWriter.Validation.validate_color!("#FFF")
-      ** (ArgumentError) Expected a string hex color (e.g., "#FF0000"), got: "#FFF"
-
-  """
+  @doc false
   def validate_color!(color) do
     if hex_color?(color) do
       :ok
