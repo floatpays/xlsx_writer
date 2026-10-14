@@ -48,9 +48,13 @@ defmodule XlsxWriter.BuilderTest do
   end
 
   describe "add_rows/2" do
-    test "raises error when no active sheet" do
-      builder = Builder.create()
+    # Passed through the test context so the type checker cannot prove the
+    # call below fails, which is exactly what this test asserts at runtime.
+    setup do
+      %{builder_without_sheet: Builder.create()}
+    end
 
+    test "raises error when no active sheet", %{builder_without_sheet: builder} do
       assert_raise ArgumentError,
                    "No active sheet. Call add_sheet/2 first.",
                    fn ->
