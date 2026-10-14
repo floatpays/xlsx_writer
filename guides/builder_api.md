@@ -41,7 +41,7 @@ Builder.create()
 ### 1. Builder State
 
 The Builder maintains state including:
-- List of sheets with their instructions
+- The completed sheets and the active one
 - Current active sheet
 - Cursor position (row, col)
 - Column width mappings

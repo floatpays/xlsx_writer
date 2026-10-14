@@ -56,6 +56,18 @@ defmodule XlsxWriter do
   alias XlsxWriter.RustXlsxWriter
   alias XlsxWriter.Validation
 
+  @typedoc """
+  A worksheet: its name and the instructions added to it.
+
+  Create one with `new_sheet/1`, add to it with the functions in this module
+  and pass it to `generate/2`. The instructions are private to this library
+  and change between releases, so do not build or pattern-match on them.
+  """
+  @type sheet :: {String.t(), instructions()}
+
+  @typedoc "The instructions of a `t:sheet/0`. Private to this library."
+  @opaque instructions :: list()
+
   @doc """
   Generates an Excel xlsx file from a list of sheets.
 

@@ -73,14 +73,14 @@ defmodule XlsxWriter.Builder do
   @typedoc """
   Builder state.
 
-  `sheets` holds the completed sheets, most recent first; the active sheet's
-  instructions are kept in `instructions` until the next `add_sheet/3` or
-  `write_binary/1`.
+  `sheets` holds the completed sheets, most recent first; the active sheet
+  (named `current_sheet`) is kept in `sheet` until the next `add_sheet/3` or
+  `write_binary/1`. Sheets are `t:XlsxWriter.sheet/0` values.
   """
   @type t :: %__MODULE__{
-          sheets: [{String.t(), list()}],
+          sheets: [XlsxWriter.sheet()],
           current_sheet: String.t() | nil,
-          instructions: list(),
+          sheet: XlsxWriter.sheet() | nil,
           cursor_row: non_neg_integer(),
           cursor_col: non_neg_integer(),
           column_widths: %{optional(non_neg_integer()) => number()}
@@ -88,7 +88,7 @@ defmodule XlsxWriter.Builder do
 
   defstruct sheets: [],
             current_sheet: nil,
-            instructions: [],
+            sheet: nil,
             cursor_row: 0,
             cursor_col: 0,
             column_widths: %{}
@@ -144,7 +144,7 @@ defmodule XlsxWriter.Builder do
     %{
       builder
       | current_sheet: sheet_name,
-        instructions: [],
+        sheet: XlsxWriter.new_sheet(sheet_name),
         cursor_row: 0,
         cursor_col: 0,
         column_widths: %{}
@@ -325,20 +325,19 @@ defmodule XlsxWriter.Builder do
   defp finalize_current_sheet(%__MODULE__{current_sheet: nil} = builder),
     do: builder
 
+  # Explicit widths take precedence over autofit wherever they are set.
   defp finalize_current_sheet(%__MODULE__{} = builder) do
-    width_instructions =
-      Enum.map(builder.column_widths, fn {col, width} ->
-        {:set_column_width, col, width}
-      end)
-
     sheet =
-      {builder.current_sheet, width_instructions ++ builder.instructions}
+      Enum.reduce(builder.column_widths, builder.sheet, fn {col, width},
+                                                           sheet ->
+        XlsxWriter.set_column_width(sheet, col, width)
+      end)
 
     %{
       builder
       | sheets: [sheet | builder.sheets],
         current_sheet: nil,
-        instructions: [],
+        sheet: nil,
         column_widths: %{}
     }
   end
@@ -395,15 +394,8 @@ defmodule XlsxWriter.Builder do
   end
 
   defp add_write_instruction(builder, row, col, value, format) do
-    {_name, instructions} =
-      XlsxWriter.write(
-        {builder.current_sheet, builder.instructions},
-        row,
-        col,
-        value,
-        format: format
-      )
+    sheet = XlsxWriter.write(builder.sheet, row, col, value, format: format)
 
-    %{builder | instructions: instructions}
+    %{builder | sheet: sheet}
   end
 end
