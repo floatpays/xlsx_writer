@@ -198,7 +198,7 @@ The package is available on [Hex](https://hex.pm/packages/xlsx_writer). Add `xls
 ```elixir
 def deps do
   [
-    {:xlsx_writer, "~> 0.10.4"}
+    {:xlsx_writer, "~> 0.11.0"}
   ]
 end
 ```

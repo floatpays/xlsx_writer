@@ -1,5 +1,51 @@
 # Changelog
 
+## v0.11.0
+
+Invalid input now fails with an error instead of being silently dropped, misread or written somewhere else. Most mistakes raise `ArgumentError` when the instruction is added; anything that still reaches `generate/2` comes back as `{:error, reason}`.
+
+### breaking
+
+- All call-time argument validation now raises `ArgumentError`. `XlsxWriter.Error` has been removed: unsupported value types and non-string colours used to raise it.
+  - Migration: replace `rescue XlsxWriter.Error` (or `assert_raise XlsxWriter.Error`) with `ArgumentError`.
+- Positions are checked against Excel's grid when the instruction is added: rows must be integers in `0..1_048_575` and columns integers in `0..16_383`, for every function that takes a position (`write*`, `merge_range/7`, `write_comment/5`, `write_image/4`, `freeze_panes/3`, `hide_row/2`, `hide_column/2`, `set_autofilter/5`, `set_column_*`, `set_row_*`). Previously, out-of-range values either returned an error from `generate/2`, or wrapped around silently (a column of `70_000` was written to column `4_464`), and non-integers crashed `generate/2`. Ranges whose first row/column is after the last now raise too.
+- Colours must be `"#RRGGBB"` (case-insensitive, the `#` is optional). Previously `"#FFF"` produced dark blue, `"red"` was ignored, and `"#FFFFFFFF"` was ignored with a warning on stderr.
+  - Migration: expand short forms (`"#FFF"` → `"#FFFFFF"`) and replace colour names with their hex value.
+- Format options are validated: unknown options (e.g. `:bolt`) raise instead of crashing `generate/2`; `:font_size` must be greater than 0 and at most 409; `:rotation` an integer in `-90..90` or `270`; `:indent` an integer in `0..250`; `:align`, `:valign`, `:pattern`, `:underline` and border styles must be one of the documented atoms. Out-of-range values used to wrap around or be ignored with a warning on stderr.
+- Column widths must be numbers in `0..255` (character units) and row heights numbers in `0..409` (points).
+- `write_comment/5`: `:author` longer than 52 characters raises (rust_xlsxwriter used to print a warning and use "Author" instead); `:width`/`:height` must be numbers of at least 1 pixel (0 was silently ignored); `:visible` must be a boolean.
+- `write_formula/5` requires a string formula, `write_url/5` a string `:text`, and rich string segments non-empty text.
+- `Builder`: unknown cell options (e.g. `formats:` instead of `format:`) raise instead of being ignored, and `add_sheet/3` raises if a sheet with the same name (ignoring case, as Excel does) already exists. Previously rows added after a duplicate `add_sheet` were written into every sheet with that name.
+- `Builder.write_file/2` returns `{:error, reason}` (e.g. `{:error, :enoent}`) when the file cannot be written, as documented, instead of raising `File.Error`.
+- The internal instruction terms changed shape, e.g. `{:write, 0, 0, {:string, "Hello", []}}` instead of `{:write, 0, 0, {:string, "Hello"}}` and `{:number, 1.0, [:bold]}` instead of `{:number_with_format, 1.0, [:bold]}`. They are not a public API, but code that pattern-matches on the sheet tuples, or builds instructions by hand, has to be updated.
+- `Builder` struct: `sheets` now holds only completed sheets (most recent first); the active sheet's instructions are in the new `instructions` field.
+
+### bug fixes
+
+- `merge_range/7` keeps the value's type. Numbers, booleans and formatted dates were written and then overwritten with an empty string, so the merged cell came out blank.
+- `merge_range/7` without `:format` now merges `Date`, `DateTime` and `NaiveDateTime` values (with the same default number formats as `write/5`). Previously only the first cell was written and nothing was merged.
+- Fractional sizes no longer crash `generate/2`: column widths, row heights (including the documented `set_row_height(sheet, 0, 30.0)`), font sizes, comment sizes and Builder `width:` accept integers or floats.
+- `autofit/1` is applied after all data is written, wherever it appears in the pipeline, and explicit column widths (`set_column_width/3`, `set_column_range_width/4`, Builder `width:`) take precedence, as documented. Previously autofit only measured cells written before it and overrode smaller explicit widths.
+- `generate/2` returns `{:error, reason}` instead of raising `ErlangError` ("Could not decode field on position N") for instructions it cannot decode. The reason names the sheet, the instruction's position (in write order) and the term, e.g. `invalid instruction #2 in sheet "Data": {write,0,0,bad}`. Invalid `:properties` and malformed sheets return an error as well.
+- The NIF validates positions, sizes, colours, rotation, indent and comment authors too, so hand-built instructions return `{:error, reason}` instead of wrapping, being ignored or printing to stderr.
+- `Decimal` values outside the range of a double (or `NaN`) raise `ArgumentError` instead of `Decimal.Error`.
+- Guides: the "Complete Layout Example" no longer overwrites its own formula, the range sizing example uses character units and points instead of "pixels", and the "Hide Rows" example no longer writes the same cell twice. The README license link points at `LICENSE`.
+
+### improvements
+
+- The NIF returns the workbook as a binary instead of a list of integers, which used about 16 bytes of memory per byte of output before being converted.
+- `DateTime` values are documented to be written as wall-clock time with the UTC offset dropped (Excel has no time zones); this behaviour is now covered by tests.
+- New public validators: `XlsxWriter.Validation.validate_row!/1`, `validate_column!/1`, `validate_range!/4`, `validate_row_range!/2`, `validate_column_range!/2` and `validate_color!/1`.
+- Integers beyond 64 bits are written as numbers instead of crashing `generate/2`.
+- `rustler` is now an optional dependency, as `rustler_precompiled` recommends. It is only needed to build the NIF from source.
+- Internal: one value-to-cell conversion in Elixir, one cell variant per type (carrying its format list) in Rust, a single `merge_range` and colour parser, `?`-based error handling in the NIF, and `rust_xlsxwriter`'s own `set_column_range_width`. The Builder keeps the active sheet's instructions separately instead of rewriting every sheet per cell.
+- Tests assert on the generated XML (merged cells, bounds, sizes, colours, autofit, date-times, decode errors) instead of only checking that a file was produced, and no longer write files into the project root. `XlsxWriter.Validation` and `XlsxWriter.Builder` examples run as doctests.
+- CI: a lint job checks `mix format`, Credo, `cargo fmt`, Clippy and runs the Rust unit tests; leftover MJML settings are removed. The release workflow fails if the tag does not match the version in `mix.exs` and `Cargo.toml`.
+
+### deprecations
+
+- `XlsxWriter.Validation.validate_supported_type!/1` is deprecated (and raises `ArgumentError` now): `write/5` and `merge_range/7` already validate values.
+
 ## v0.10.4
 
 ### bug fixes
