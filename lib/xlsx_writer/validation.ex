@@ -67,6 +67,37 @@ defmodule XlsxWriter.Validation do
   @patterns [:solid, :none, :gray125, :gray0625]
   @underline_styles [:single, :double, :single_accounting, :double_accounting]
 
+  @doc false
+  # One example of every format option and value that `validate_formats!/1`
+  # accepts, including the ends of each numeric range. Tests send each one
+  # through the NIF, so that the lists above and the Rust enums stay in sync.
+  def format_examples do
+    Enum.concat([
+      @flag_formats,
+      for(option <- @color_formats, do: {option, "#123456"}),
+      for(
+        option <- @border_formats,
+        style <- @border_styles,
+        do: {option, style}
+      ),
+      for(alignment <- @alignments, do: {:align, alignment}),
+      for(alignment <- @vertical_alignments, do: {:valign, alignment}),
+      for(pattern <- @patterns, do: {:pattern, pattern}),
+      for(style <- @underline_styles, do: {:underline, style}),
+      [
+        {:num_format, "0.00"},
+        {:font_name, "Arial"},
+        {:font_size, 0.5},
+        {:font_size, 500},
+        {:rotation, -90},
+        {:rotation, 90},
+        {:rotation, 270},
+        {:indent, 0},
+        {:indent, @max_indent}
+      ]
+    ])
+  end
+
   @doc """
   Validates a cell position: both indices must be integers within Excel's
   limits (rows `0..#{@max_row}`, columns `0..#{@max_column}`).
