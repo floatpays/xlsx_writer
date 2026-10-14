@@ -59,9 +59,17 @@ defmodule XlsxWriter.Builder do
   @type cell :: cell_value() | cell_with_format()
   @type row :: [cell()]
 
+  @typedoc """
+  Builder state.
+
+  `sheets` holds the completed sheets, most recent first; the active sheet's
+  instructions are kept in `instructions` until the next `add_sheet/3` or
+  `write_binary/1`.
+  """
   @type t :: %__MODULE__{
           sheets: [{String.t(), list()}],
           current_sheet: String.t() | nil,
+          instructions: list(),
           cursor_row: non_neg_integer(),
           cursor_col: non_neg_integer(),
           column_widths: %{optional(non_neg_integer()) => number()}
@@ -69,6 +77,7 @@ defmodule XlsxWriter.Builder do
 
   defstruct sheets: [],
             current_sheet: nil,
+            instructions: [],
             cursor_row: 0,
             cursor_col: 0,
             column_widths: %{}
@@ -115,14 +124,12 @@ defmodule XlsxWriter.Builder do
   """
   def add_sheet(%__MODULE__{} = builder, sheet_name, _opts \\ [])
       when is_binary(sheet_name) do
-    # Finalize current sheet if it exists
     builder = finalize_current_sheet(builder)
 
-    # Create new sheet and switch to it
     %{
       builder
-      | sheets: builder.sheets ++ [{sheet_name, []}],
-        current_sheet: sheet_name,
+      | current_sheet: sheet_name,
+        instructions: [],
         cursor_row: 0,
         cursor_col: 0,
         column_widths: %{}
@@ -179,15 +186,11 @@ defmodule XlsxWriter.Builder do
     start_row = Keyword.get(opts, :start_row, builder.cursor_row)
     start_col = Keyword.get(opts, :start_col, builder.cursor_col)
 
-    # Process each row
     {builder, final_row} =
-      Enum.reduce(rows, {builder, start_row}, fn row,
-                                                 {acc_builder, current_row} ->
-        new_builder = add_single_row(acc_builder, row, current_row, start_col)
-        {new_builder, current_row + 1}
+      Enum.reduce(rows, {builder, start_row}, fn row, {builder, row_index} ->
+        {add_single_row(builder, row, row_index, start_col), row_index + 1}
       end)
 
-    # Update cursor to next row after all added rows
     %{builder | cursor_row: final_row, cursor_col: start_col}
   end
 
@@ -238,12 +241,14 @@ defmodule XlsxWriter.Builder do
 
   """
   def write_binary(%__MODULE__{} = builder) do
-    builder = finalize_current_sheet(builder)
+    case finalize_current_sheet(builder) do
+      %__MODULE__{sheets: []} ->
+        {:error, "No sheets added. Use add_sheet/2 to add at least one sheet."}
 
-    if builder.sheets == [] do
-      {:error, "No sheets added. Use add_sheet/2 to add at least one sheet."}
-    else
-      XlsxWriter.generate(builder.sheets)
+      %__MODULE__{sheets: sheets} ->
+        sheets
+        |> Enum.reverse()
+        |> XlsxWriter.generate()
     end
   end
 
@@ -284,48 +289,31 @@ defmodule XlsxWriter.Builder do
   defp finalize_current_sheet(%__MODULE__{current_sheet: nil} = builder),
     do: builder
 
+  # Moves the active sheet, with its column widths, into the completed sheets.
   defp finalize_current_sheet(%__MODULE__{} = builder) do
-    # Apply any pending column widths
-    apply_column_widths(builder)
-  end
-
-  defp apply_column_widths(%__MODULE__{column_widths: widths} = builder)
-       when map_size(widths) == 0 do
-    builder
-  end
-
-  defp apply_column_widths(%__MODULE__{current_sheet: sheet_name} = builder) do
-    # Find the current sheet and add column width instructions
-    sheets =
-      Enum.map(builder.sheets, fn
-        {^sheet_name, instructions} ->
-          width_instructions =
-            Enum.map(builder.column_widths, fn {col, width} ->
-              {:set_column_width, col, width}
-            end)
-
-          {sheet_name, width_instructions ++ instructions}
-
-        other ->
-          other
+    width_instructions =
+      Enum.map(builder.column_widths, fn {col, width} ->
+        {:set_column_width, col, width}
       end)
 
-    %{builder | sheets: sheets}
+    sheet =
+      {builder.current_sheet, width_instructions ++ builder.instructions}
+
+    %{
+      builder
+      | sheets: [sheet | builder.sheets],
+        current_sheet: nil,
+        instructions: [],
+        column_widths: %{}
+    }
   end
 
-  defp add_single_row(builder, row, row_idx, start_col) do
-    {builder, _final_col} =
-      Enum.reduce(
-        Enum.with_index(row),
-        {builder, start_col},
-        fn {cell, col_offset}, {acc_builder, _} ->
-          col_idx = start_col + col_offset
-          new_builder = write_cell(acc_builder, row_idx, col_idx, cell)
-          {new_builder, col_idx + 1}
-        end
-      )
-
-    builder
+  defp add_single_row(builder, row, row_index, start_col) do
+    row
+    |> Enum.with_index(start_col)
+    |> Enum.reduce(builder, fn {cell, col_index}, builder ->
+      write_cell(builder, row_index, col_index, cell)
+    end)
   end
 
   defp write_cell(builder, row, col, {value, opts}) when is_list(opts) do
@@ -349,32 +337,18 @@ defmodule XlsxWriter.Builder do
     add_write_instruction(builder, row, col, value, [])
   end
 
-  defp add_write_instruction(
-         %__MODULE__{current_sheet: sheet_name} = builder,
-         row,
-         col,
-         value,
-         format
-       ) do
-    # Find current sheet and add write instruction
-    sheets =
-      Enum.map(builder.sheets, fn
-        {^sheet_name, instructions} ->
-          sheet = {sheet_name, instructions}
+  # Prepends to the active sheet's instructions only, instead of rewriting
+  # every sheet for every cell.
+  defp add_write_instruction(builder, row, col, value, format) do
+    {_name, instructions} =
+      XlsxWriter.write(
+        {builder.current_sheet, builder.instructions},
+        row,
+        col,
+        value,
+        format: format
+      )
 
-          updated_sheet =
-            if format == [] do
-              XlsxWriter.write(sheet, row, col, value)
-            else
-              XlsxWriter.write(sheet, row, col, value, format: format)
-            end
-
-          updated_sheet
-
-        other ->
-          other
-      end)
-
-    %{builder | sheets: sheets}
+    %{builder | instructions: instructions}
   end
 end

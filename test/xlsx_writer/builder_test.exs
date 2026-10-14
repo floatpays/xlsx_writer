@@ -1,6 +1,8 @@
 defmodule XlsxWriter.BuilderTest do
   use ExUnit.Case, async: true
 
+  import XlsxWriter.TestHelpers
+
   alias XlsxWriter.Builder
 
   describe "create/0" do
@@ -22,7 +24,7 @@ defmodule XlsxWriter.BuilderTest do
       assert builder.current_sheet == "Sheet1"
       assert builder.cursor_row == 0
       assert builder.cursor_col == 0
-      assert length(builder.sheets) == 1
+      assert builder.sheets == []
     end
 
     test "supports multiple sheets" do
@@ -32,7 +34,12 @@ defmodule XlsxWriter.BuilderTest do
         |> Builder.add_sheet("Sheet2")
 
       assert builder.current_sheet == "Sheet2"
-      assert length(builder.sheets) == 2
+      assert [{"Sheet1", []}] = builder.sheets
+
+      {:ok, content} = Builder.write_binary(builder)
+      assert xlsx_part(content, "xl/worksheets/sheet1.xml")
+      assert xlsx_part(content, "xl/worksheets/sheet2.xml")
+      refute xlsx_part(content, "xl/worksheets/sheet3.xml")
     end
 
     test "resets cursor when switching sheets" do
